@@ -1,0 +1,2950 @@
+设计模式简介
+
+    设计模式的概念最初源自建筑行业，建筑师 Christopher Alexander 曾这样解释过模式的概念：“总会有一类问题在我们身边反复出现，模式就是针对这一类问题的通用解法。
+    当问题反复出现时，直接套用这个解法即可，而不需要去重新解决问题。”
+
+    Each pattern describes a problem which occurs over and over again in our environment, and then describes the core of the solution to that problem, 
+    in such a way that you can use this solution a million times over, without ever doing it the same way twice.
+
+    后来，模式的思想也被引入了软件工程领域，软件工程中提出了以下设计原则，设计模式也遵循了这些原则
+        开闭原则（The Open-Closed Principle，OCP）：对扩展开放，对修改关闭。修改程序时，不需要修改类内部代码就可以扩展类的功能，如装饰器模式
+        Liskov 替换原则（Liskov Substitution Principle，LSP）：任何基类出现的地方，都可以用派生类替换
+        依赖倒置原则（Dependency Inversion Principle，DIP）：针对接口（纯虚函数）编程，而非针对实现编程
+        接口分离原则（Interface Segregation Principle，ISP）：接口功能的粒度应该尽可能小，多个功能分离的小接口、单个合并了这些功能的大接口，前者是更好的做法，因为这样降低了依赖，耦合度更低
+        发布复用等价性原则（Release Reuse Equivalency Principle，REP）：复用的粒度就是发布的粒度。第三方库的作者需要维护每个版本，作者可以修改代码，但是用户不需要了解源码的变化，而可以自由选择使用哪个版本的库，
+        因此库作者应该将可复用的类打包成包，以包为单位来更新，而不是更新每个类，比如 Boost 有一个版本号，而其中的每个子部分（如 Boost.Asio）又有各自独立的版本号
+        共同封装原则（Common Closure Principle，CCP）：一同变更的类应该合在一起，如果一些类处理相同的功能或行为域，那么这些类应该根据内聚性分到一组打包，这样需要修改某个域的功能时，只需要修改这个包中的代码
+        共同复用原则（Common Reuse Principle，CRP）：不能一起被复用的类不能被分到一组。当包中的类变化时，包的版本号也会变化，如果不相关的类被分到一组，就会导致本来无必要的包的版本升级，为此又需要进行本来无必要的集成和测试
+    设计模式是从已有的软件设计中，针对重复出现的问题提取出的一套经验论，其概念源自 Design Patterns: Elements of Reusable Object-Oriented Software，此书由四人合著，因此简称 GoF（Gang of Four）。
+    GoF 总结归纳了 23 种设计模式，分为创建型（Creational）、结构型（Structural）、行为型（Behavioral）三类。设计模式的思想在编程世界中很常见，如 C# 的委托与事件、Qt 的信号槽、RxJS 的响应式编程本质都是观察者模式
+
+创建型模式 				中文名 		说明 	实现
+Abstract Factory/Kit 			抽象工厂模式 	README 	C++
+Builder 					建造者模式 	README 	C++
+Factory Method/Virutal Contructor 	工厂方法模式 	README 	C++
+Prototype 				原型模式 	README 	C++
+Singleton 				单例模式 	README 	C++
+
+结构型模式 				中文名 		说明 	实现
+Adapter/Wrapper 			适配器模式 	README 	C++
+Bridge/Handle/Body 			桥接模式 	README 	C++
+Composite 				组合模式 	README 	C++
+Decorator/Wrapper 			装饰器模式 	README 	C++
+Facade 					外观模式 	README 	C++
+Flyweight 				享元模式 	README 	C++
+Proxy/Surrogate 				代理模式 	README 	C++
+行为型模式 				中文名 		说明 	实现
+Chain of Responsibility 			责任链模式 	README 	C++
+Command/Action/Transaction 		命令模式 	README 	C++
+Interpreter 				解释器模式 	README 	C++
+Iterator/Cursor 				迭代器模式 	README 	C++
+Mediator 				中介者模式 	README 	C++
+Memento/Token 			备忘录模式 	README 	C++
+Observer/Dependents/Publish-Subscribe 	观察者模式 	README 	C++
+State/Objects for States 			状态模式 	README 	C++
+Strategy/Policy 				策略模式 	README 	C++
+Template Method 			模板方法模式 	README 	C++
+Visitor 					访问者模式 	README 	C++
+
+C++ 中的设计模式
+
+    设计模式并非十全十美，一些模式本质就意味着高耦合（如观察者模式），用 C++ 实现时要注意正确管理资源生命周期，避免内存泄漏
+    C++11 引入了 std::shared_ptr、std::unique_ptr、std::weak_ptr 三种智能指针来解决原始指针生命周期管理困难的痛点，此项目通过使用它们来避免内存泄漏，以深入理解三者的使用场景及其区别。
+    需要注意的是，实际工程可能需要考虑更多问题（如线程安全、智能指针的额外开销、代码可读性），应当避免滥用智能指针（同理也应当避免滥用设计模式）
+    使用智能指针并不意味着一定没有内存泄漏，比如循环引用的情况（实现观察者模式时容易写出类似代码）
+
+class B;
+
+class A {
+ public:
+  std::shared_ptr<B> b;
+  ~A() { std::cout << "Destroy A\n"; }
+};
+
+class B {
+ public:
+  std::shared_ptr<A> a;
+  ~B() { std::cout << "Destroy B\n"; }
+};
+
+int main() {
+  {
+    auto p = std::make_shared<A>();
+    p->b = std::make_shared<B>();
+    p->b->a = p;
+    assert(p.use_count() == 2);
+  }  // p 的引用计数由 2 减为 1，不会析构
+     // 于是 p->b 也不会析构，导致两次内存泄漏
+}
+
+    分析 std::shared_ptr 的生命周期，适当使用 std::weak_ptr 即可避免此类情况
+
+class B;
+
+class A {
+ public:
+  std::shared_ptr<B> b;
+  ~A() { std::cout << "Destroy A\n"; }
+};
+
+class B {
+ public:
+  std::weak_ptr<A> a;
+  ~B() { std::cout << "Destroy B\n"; }
+};
+
+int main() {
+  {
+    auto p = std::make_shared<A>();
+    p->b = std::make_shared<B>();
+    p->b->a = p;  // weak_ptr 不增加 shared_ptr 的引用计数
+    assert(p.use_count() == 1);
+  }  // Destroy A
+     // Destroy B
+}
+
+检测内存泄漏的方法
+
+    开发环境使用 Visual Studio
+    在程序结束点调用 _CrtDumpMemoryLeaks()
+
+#include <crtdbg.h>
+
+#ifdef _DEBUG
+#define new new (_NORMAL_BLOCK, __FILE__, __LINE__)
+#endif
+
+int main() {
+  int* p = new int(42);
+  _CrtDumpMemoryLeaks();
+}
+
+    调试时将提示第 9 行产生 4 字节的内存泄漏
+
+Detected memory leaks!
+Dumping objects ->
+xxx.cpp(9) : {88} normal block at 0x008C92D0, 4 bytes long.
+ Data: <*   > 2A 00 00 00 
+Object dump complete.
+
+    这种方法的原理是，在执行此函数时，检查所有未回收的内存，因此存在析构函数还未执行而误报的情况
+
+#include <crtdbg.h>
+
+#include <memory>
+
+#ifdef _DEBUG
+#define new new (_NORMAL_BLOCK, __FILE__, __LINE__)
+#endif
+
+int main() {
+  auto p = std::make_shared<int>(42);
+  _CrtDumpMemoryLeaks();  // 此时 std::shared_ptr 还未析构，因此报告内存泄漏
+}
+
+    更好的方法是在开始点使用 _CrtSetDbgFlag()，它在程序退出时调用 _CrtDumpMemoryLeaks()
+
+#include <crtdbg.h>
+
+#ifdef _DEBUG
+#define new new (_NORMAL_BLOCK, __FILE__, __LINE__)
+#endif
+
+int main() {
+  _CrtSetDbgFlag(_CRTDBG_LEAK_CHECK_DF | _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG));
+  int* p = new int(42);
+}
+
+    该项目中的源码使用上述方式检测均无内存泄漏
+    为了尽可能简单，所有代码均以单个源文件的形式实现
+    源码中未使用平台相关 API，因此在任何支持 C++17 标准的平台均可通过编译
+
+智能指针的传参方式选择
+
+    以下两种传参方式，应该如何选择？
+
+void f(std::shared_ptr<A> p);         // 按值传递
+void f(const std::shared_ptr<A>& p);  // 按 const 引用传递
+
+    不同的传参方式表达了不同的语义，通常情况下，按 const 引用传递是最稳妥且没有心智负担的
+
+void f(A&);  // 仅使用对象，不涉及对象资源所有权的管理
+void f(A*);  // 仅使用对象，不涉及对象资源所有权的管理
+
+void f(std::unique_ptr<A>);  // 用于转移唯一所有权（用 std::move 传入）
+void f(std::unique_ptr<A>&);        // 用于重置内部对象
+void f(const std::unique_ptr<A>&);  // 不如直接传引用或原始指针
+
+void f(std::shared_ptr<A>);   // 引用计数共享
+                              // 可用 std::move 传入 std::unique_ptr 实参
+void f(std::shared_ptr<A>&);  // 引用计数不变，用于重置内部对象
+                              // 不可接受 std::unique_ptr 实参
+void f(const std::shared_ptr<A>&);  // 引用计数不变，不可重置内部对象
+                                    // 可用 std::move 传入 std::unique_ptr 实参
+
+    对于按值传递，只在之后一定会对其拷贝的场景才可能考虑使用
+
+void f(const std::shared_ptr<A>& p) {
+  auto q = p;  // 拷贝 p
+  // ...
+}
+
+    如果按值传递，拷贝可以改用移动，比起传引用后使用拷贝，只多出一次移动操作，如果移动开销很小，这种做法简化了代码，是一个很好的选择
+
+void f(std::shared_ptr<A> p) {  // 拷贝一次
+  auto q = std::move(p);        // 移动一次
+  // ...
+}
+
+    这种情况常见于构造函数中
+
+class X {
+ public:
+  explicit X(std::shared_ptr<A> p) : p_(std::move(p)) {}
+
+ private:
+  std::shared_ptr<A> p_;
+};
+
+    抽象工厂能生成一系列相关的局部产品
+
+class Door {
+ public:
+  virtual ~Door() = default;
+};
+
+class Window {
+ public:
+  virtual ~Window() = default;
+};
+
+class House {
+ public:
+  virtual void SetDoor(const Door&) {}
+  virtual void SetWindow(const Window&) {}
+  virtual ~House() = default;
+};
+
+class HouseFactory {
+ public:
+  virtual std::unique_ptr<Door> MakeDoor() { return std::make_unique<Door>(); }
+
+  virtual std::unique_ptr<Window> MakeWindow() {
+    return std::make_unique<Window>();
+  }
+
+  virtual std::unique_ptr<House> MakeHouse() {
+    return std::make_unique<House>();
+  }
+
+  virtual ~HouseFactory() = default;
+};
+
+    用这个抽象工厂生成的局部产品即可组合成一个完整的产品
+
+class Life {
+ public:
+  std::unique_ptr<House> CreateHouse(HouseFactory& factory) {
+    std::unique_ptr<Door> door = factory.MakeDoor();
+    std::unique_ptr<Window> window = factory.MakeWindow();
+    std::unique_ptr<House> house = factory.MakeHouse();
+    house->SetDoor(*door);
+    house->SetWindow(*window);
+    return house;
+  }
+};
+
+int main() {
+  Life life;
+  HouseFactory factory;
+  std::unique_ptr<House> house = life.CreateHouse(factory);
+}
+
+    继承这个抽象工厂，即可对局部产品进行修改
+
+class WoodDoor : public Door {};
+class WoodWindow : public Window {};
+class WoodHouse : public House {};
+
+class WoodHouseFactory : public HouseFactory {
+ public:
+  std::unique_ptr<Door> MakeDoor() override {
+    return std::make_unique<WoodDoor>();
+  }
+
+  std::unique_ptr<Window> MakeWindow() override {
+    return std::make_unique<WoodWindow>();
+  }
+
+  std::unique_ptr<House> MakeHouse() override {
+    return std::make_unique<WoodHouse>();
+  }
+};
+
+int main() {
+  Life life;
+  WoodHouseFactory factory;
+
+  std::unique_ptr<House> house = life.CreateHouse(factory);
+}
+
+#include <memory>
+
+class Door {
+ public:
+  virtual ~Door() = default;
+};
+
+class Window {
+ public:
+  virtual ~Window() = default;
+};
+
+class House {
+ public:
+  virtual void SetDoor(const Door&) {}
+  virtual void SetWindow(const Window&) {}
+  virtual ~House() = default;
+};
+
+class HouseFactory {
+ public:
+  virtual std::unique_ptr<Door> MakeDoor() { return std::make_unique<Door>(); }
+
+  virtual std::unique_ptr<Window> MakeWindow() {
+    return std::make_unique<Window>();
+  }
+
+  virtual std::unique_ptr<House> MakeHouse() {
+    return std::make_unique<House>();
+  }
+
+  virtual ~HouseFactory() = default;
+};
+
+class Life {
+ public:
+  std::unique_ptr<House> CreateHouse(HouseFactory& factory) {
+    std::unique_ptr<Door> door = factory.MakeDoor();
+    std::unique_ptr<Window> window = factory.MakeWindow();
+    std::unique_ptr<House> house = factory.MakeHouse();
+    house->SetDoor(*door);
+    house->SetWindow(*window);
+    return house;
+  }
+};
+
+class WoodDoor : public Door {};
+class WoodWindow : public Window {};
+class WoodHouse : public House {};
+
+class WoodHouseFactory : public HouseFactory {
+ public:
+  std::unique_ptr<Door> MakeDoor() override {
+    return std::make_unique<WoodDoor>();
+  }
+
+  std::unique_ptr<Window> MakeWindow() override {
+    return std::make_unique<WoodWindow>();
+  }
+
+  std::unique_ptr<House> MakeHouse() override {
+    return std::make_unique<WoodHouse>();
+  }
+};
+
+int main() {
+  Life life;
+  WoodHouseFactory factory;
+
+  std::unique_ptr<House> house = life.CreateHouse(factory);
+}
+
+    建造者本身只定义接口，由不同实现定义实现类
+
+class DeviceSuite {
+ public:
+  void SetMouse(std::string_view) {}
+  void SetKeyboard(std::string_view) {}
+  void SetHeadphone(std::string_view) {}
+};
+
+// 提供接口的 Builder
+class GameDevice {
+ public:
+  virtual void BuildMouse() = 0;
+  virtual void BuildKeyboard() = 0;
+  virtual void BuildHeadphone() = 0;
+  virtual DeviceSuite& Device() const = 0;
+  virtual ~GameDevice() = default;
+};
+
+// 定义一个实现类
+class LOLGameDevice : public GameDevice {
+ public:
+  LOLGameDevice() : device_(std::make_unique<DeviceSuite>()) {}
+
+  void BuildMouse() override { device_->SetMouse("Logitech"); }
+
+  void BuildKeyboard() override { device_->SetKeyboard("Filco"); }
+
+  void BuildHeadphone() override { device_->SetHeadphone("Sennheiser"); }
+
+  DeviceSuite& Device() const override { return *device_; }
+
+ private:
+  std::unique_ptr<DeviceSuite> device_;
+};
+
+// 还可以继续定义其他实现类，根据需要可以有任意数量种实现
+class DNFGameDevice : public GameDevice {
+ public:
+  DNFGameDevice() : device_(std::make_unique<DeviceSuite>()) {}
+
+  void BuildMouse() override { device_->SetMouse("Razer"); }
+
+  void BuildKeyboard() override { device_->SetKeyboard("Cherry"); }
+
+  void BuildHeadphone() override { device_->SetHeadphone("Beyerdynamic"); }
+
+  DeviceSuite& Device() const override { return *device_; }
+
+ private:
+  std::unique_ptr<DeviceSuite> device_;
+};
+
+    用实现类构建一个完整产品
+
+class Life {
+ public:
+  DeviceSuite& CreateDevice(GameDevice& builder) {
+    builder.BuildMouse();
+    builder.BuildKeyboard();
+    builder.BuildHeadphone();
+    return builder.Device();
+  }
+};
+
+int main() {
+  Life life;
+  LOLGameDevice LOLBuilder;
+  DNFGameDevice DNFBuilder;
+
+  DeviceSuite LOLDevice = life.CreateDevice(LOLBuilder);
+  DeviceSuite DNFDevice = life.CreateDevice(DNFBuilder);
+}
+
+#include <memory>
+#include <string_view>
+
+class DeviceSuite {
+ public:
+  void SetMouse(std::string_view) {}
+  void SetKeyboard(std::string_view) {}
+  void SetHeadphone(std::string_view) {}
+};
+
+class GameDevice {
+ public:
+  virtual void BuildMouse() = 0;
+  virtual void BuildKeyboard() = 0;
+  virtual void BuildHeadphone() = 0;
+  virtual DeviceSuite& Device() const = 0;
+  virtual ~GameDevice() = default;
+};
+
+class LOLGameDevice : public GameDevice {
+ public:
+  LOLGameDevice() : device_(std::make_unique<DeviceSuite>()) {}
+
+  void BuildMouse() override { device_->SetMouse("Logitech"); }
+
+  void BuildKeyboard() override { device_->SetKeyboard("Filco"); }
+
+  void BuildHeadphone() override { device_->SetHeadphone("Sennheiser"); }
+
+  DeviceSuite& Device() const override { return *device_; }
+
+ private:
+  std::unique_ptr<DeviceSuite> device_;
+};
+
+class DNFGameDevice : public GameDevice {
+ public:
+  DNFGameDevice() : device_(std::make_unique<DeviceSuite>()) {}
+
+  void BuildMouse() override { device_->SetMouse("Razer"); }
+
+  void BuildKeyboard() override { device_->SetKeyboard("Cherry"); }
+
+  void BuildHeadphone() override { device_->SetHeadphone("Beyerdynamic"); }
+
+  DeviceSuite& Device() const override { return *device_; }
+
+ private:
+  std::unique_ptr<DeviceSuite> device_;
+};
+
+class Life {
+ public:
+  DeviceSuite& CreateDevice(GameDevice& builder) {
+    builder.BuildMouse();
+    builder.BuildKeyboard();
+    builder.BuildHeadphone();
+    return builder.Device();
+  }
+};
+
+int main() {
+  Life life;
+  LOLGameDevice LOLBuilder;
+  DNFGameDevice DNFBuilder;
+
+  DeviceSuite LOLDevice = life.CreateDevice(LOLBuilder);
+  DeviceSuite DNFDevice = life.CreateDevice(DNFBuilder);
+}
+
+    在类中设置一系列工厂函数
+
+class Life {
+ public:
+  virtual std::unique_ptr<Door> MakeDoor() { return std::make_unique<Door>(); }
+
+  virtual std::unique_ptr<Window> MakeWindow() {
+    return std::make_unique<Window>();
+  }
+
+  virtual std::unique_ptr<House> MakeHouse() {
+    return std::make_unique<House>();
+  }
+
+  std::unique_ptr<House> CreateHouse() {
+    std::unique_ptr<Door> door = MakeDoor();
+    std::unique_ptr<Window> window = MakeWindow();
+    std::unique_ptr<House> house = MakeHouse();
+    house->SetDoor(*door);
+    house->SetWindow(*window);
+    return house;
+  }
+
+  virtual ~Life() = default;
+};
+
+    继承这个类重写不同的工厂函数
+
+class WoodHouse : public House {};
+class WoodDoor : public Door {};
+class WoodWindow : public Window {};
+
+class MyLife : public Life {
+ public:
+  std::unique_ptr<House> MakeHouse() override {
+    return std::make_unique<WoodHouse>();
+  }
+
+  std::unique_ptr<Door> MakeDoor() override {
+    return std::make_unique<WoodDoor>();
+  }
+
+  std::unique_ptr<Window> MakeWindow() override {
+    return std::make_unique<WoodWindow>();
+  }
+};
+
+int main() {
+  MyLife life;
+  std::unique_ptr<House> house = life.CreateHouse();
+}
+
+#include <memory>
+
+class Door {
+ public:
+  virtual ~Door() = default;
+};
+
+class Window {
+ public:
+  virtual ~Window() = default;
+};
+
+class House {
+ public:
+  virtual void SetDoor(const Door&) {}
+  virtual void SetWindow(const Window&) {}
+  virtual ~House() = default;
+};
+
+class Life {
+ public:
+  virtual std::unique_ptr<Door> MakeDoor() { return std::make_unique<Door>(); }
+
+  virtual std::unique_ptr<Window> MakeWindow() {
+    return std::make_unique<Window>();
+  }
+
+  virtual std::unique_ptr<House> MakeHouse() {
+    return std::make_unique<House>();
+  }
+
+  std::unique_ptr<House> CreateHouse() {
+    std::unique_ptr<Door> door = MakeDoor();
+    std::unique_ptr<Window> window = MakeWindow();
+    std::unique_ptr<House> house = MakeHouse();
+    house->SetDoor(*door);
+    house->SetWindow(*window);
+    return house;
+  }
+
+  virtual ~Life() = default;
+};
+
+class WoodHouse : public House {};
+class WoodDoor : public Door {};
+class WoodWindow : public Window {};
+
+class MyLife : public Life {
+ public:
+  std::unique_ptr<House> MakeHouse() override {
+    return std::make_unique<WoodHouse>();
+  }
+
+  std::unique_ptr<Door> MakeDoor() override {
+    return std::make_unique<WoodDoor>();
+  }
+
+  std::unique_ptr<Window> MakeWindow() override {
+    return std::make_unique<WoodWindow>();
+  }
+};
+
+int main() {
+  MyLife life;
+  std::unique_ptr<House> house = life.CreateHouse();
+}
+
+    原型模式提供一个 clone 接口来创建新的对象，避免了创建相同对象时要编写的重复代码
+
+class Prototype {
+ public:
+  virtual std::unique_ptr<Prototype> Clone() = 0;
+  virtual ~Prototype() = default;
+};
+
+class A : public Prototype {
+ public:
+  std::unique_ptr<Prototype> Clone() override {
+    return std::make_unique<A>(*this);
+  }
+};
+
+int main() {
+  std::unique_ptr<Prototype> p = std::make_unique<A>();
+  std::unique_ptr<Prototype> q = p->Clone();
+  assert(p != q);
+}
+
+#include <cassert>
+#include <memory>
+
+class Prototype {
+ public:
+  virtual std::unique_ptr<Prototype> Clone() = 0;
+  virtual ~Prototype() = default;
+};
+
+class A : public Prototype {
+ public:
+  std::unique_ptr<Prototype> Clone() override {
+    return std::make_unique<A>(*this);
+  }
+};
+
+int main() {
+  std::unique_ptr<Prototype> p = std::make_unique<A>();
+  std::unique_ptr<Prototype> q = p->Clone();
+  assert(p != q);
+}
+
+    单例模式保证一个类只有一个实例
+
+template <typename T>
+class Singleton {
+ public:
+  static T& Instance();
+  Singleton(const Singleton&) = delete;
+  Singleton& operator=(const Singleton&) = delete;
+
+ private:
+  Singleton() = default;
+  ~Singleton() = default;
+};
+
+template <typename T>
+T& Singleton<T>::Instance() {
+  static T instance;
+  return instance;
+}
+
+class A {};
+
+int main() {
+  auto& a = Singleton<A>::Instance();
+  auto& b = Singleton<A>::Instance();
+  assert(&a == &b);
+}
+
+#include <cassert>
+
+template <typename T>
+class Singleton {
+ public:
+  static T& Instance();
+  Singleton(const Singleton&) = delete;
+  Singleton& operator=(const Singleton&) = delete;
+
+ private:
+  Singleton() = default;
+  ~Singleton() = default;
+};
+
+template <typename T>
+T& Singleton<T>::Instance() {
+  static T instance;
+  return instance;
+}
+
+class A {};
+
+int main() {
+  auto& a = Singleton<A>::Instance();
+  auto& b = Singleton<A>::Instance();
+  assert(&a == &b);
+}
+
+    适配器提供了源接口到目标接口的转换
+
+class Target {  // 提供给用户的类
+ public:
+  virtual void Print() = 0;
+  virtual ~Target() = default;
+};
+
+class Adaptee {  // 提供实际功能的类
+ public:
+  virtual void PrintImpl() { std::cout << 1; }
+  virtual ~Adaptee() = default;
+};
+
+class Adapter : public Target, public Adaptee {  // 适配器
+ public:
+  void Print() override { Adaptee::PrintImpl(); }
+};
+
+int main() {
+  std::unique_ptr<Target> target = std::make_unique<Adapter>();
+  target->Print();  // 1
+}
+
+    上述采用多继承的形式称为类适配器，另一种采用组合的形式称为对象适配器
+
+class Target {
+ public:
+  virtual void Print() = 0;
+  virtual ~Target() = default;
+};
+
+class Adaptee {
+ public:
+  virtual void PrintImpl() { std::cout << 1; }
+  virtual ~Adaptee() = default;
+};
+
+class Adapter : public Target {
+ public:
+  Adapter() : p_(std::make_unique<Adaptee>()) {}
+  void Print() override { p_->PrintImpl(); }
+
+ private:
+  std::unique_ptr<Adaptee> p_;
+};
+
+int main() {
+  std::unique_ptr<Target> target = std::make_unique<Adapter>();
+  target->Print();  // 1
+}
+
+#include <iostream>
+#include <memory>
+
+class Target {
+ public:
+  virtual void Print() = 0;
+  virtual ~Target() = default;
+};
+
+class Adaptee {
+ public:
+  virtual void PrintImpl() { std::cout << 1; }
+  virtual ~Adaptee() = default;
+};
+
+class Adapter : public Target, public Adaptee {
+ public:
+  void Print() override { Adaptee::PrintImpl(); }
+};
+
+int main() {
+  std::unique_ptr<Target> target = std::make_unique<Adapter>();
+  target->Print();  // 1
+}
+
+    桥接模式分离了接口部分和实现部分，使其可以独立变化。这样就可以在不影响接口部分的情况下修改实现部分，接口部分的代码无需重新编译，从而降低了编译依赖，这种手法在 C++ 中称为 pImpl（Pointer to implementation）
+
+class AImpl {  // 提供基础操作的实现部分
+ public:
+  void PrintImpl() {}
+};
+
+class A {  // 提供给用户的接口部分
+ public:
+  A() : p_(std::make_unique<AImpl>()) {}
+  void Print() { p_->PrintImpl(); }  // 将请求转发给实现类
+ private:
+  std::unique_ptr<AImpl> p_;
+};
+
+int main() {
+  A a;
+  a.Print();
+}
+
+    当有多个实现时
+
+class AbstractionImpl {  // 定义实现部分的抽象类
+ public:
+  virtual void PrintImpl() = 0;
+  virtual ~AbstractionImpl() = default;
+};
+
+class AImpl1 : public AbstractionImpl {  // 具体的实现类 1
+ public:
+  void PrintImpl() override { std::cout << 1; }
+};
+
+class AImpl2 : public AbstractionImpl {  // 具体的实现类 2
+ public:
+  void PrintImpl() override { std::cout << 2; }
+};
+
+class Abstraction {  // 定义接口部分的抽象类
+ public:
+  virtual void Print() = 0;
+  virtual ~Abstraction() = default;
+};
+
+class A1 : public Abstraction {  // 接口类的扩充类 1
+ public:
+  explicit A1(std::unique_ptr<AbstractionImpl> p) : p_(std::move(p)) {}
+
+  void Print() override { p_->PrintImpl(); }  // 将请求转发给实现类
+
+ private:
+  std::unique_ptr<AbstractionImpl> p_;
+};
+
+class A2 : public Abstraction {  // 接口类的扩充类 2
+ public:
+  explicit A2(std::unique_ptr<AbstractionImpl> p) : p_(std::move(p)) {}
+
+  void Print() override { p_->PrintImpl(); }
+
+ private:
+  std::unique_ptr<AbstractionImpl> p_;
+};
+
+int main() {
+  std::unique_ptr<Abstraction> a1 =
+      std::make_unique<A1>(std::make_unique<AImpl1>());
+  std::unique_ptr<Abstraction> a2 =
+      std::make_unique<A1>(std::make_unique<AImpl2>());
+  std::unique_ptr<Abstraction> a3 =
+      std::make_unique<A2>(std::make_unique<AImpl1>());
+  std::unique_ptr<Abstraction> a4 =
+      std::make_unique<A2>(std::make_unique<AImpl2>());
+
+  a1->Print();  // 1
+  a2->Print();  // 2
+  a3->Print();  // 1
+  a4->Print();  // 2
+}
+
+#include <iostream>
+#include <memory>
+#include <utility>
+
+class AbstractionImpl {
+ public:
+  virtual void PrintImpl() = 0;
+  virtual ~AbstractionImpl() = default;
+};
+
+class AImpl1 : public AbstractionImpl {
+ public:
+  void PrintImpl() override { std::cout << 1; }
+};
+
+class AImpl2 : public AbstractionImpl {
+ public:
+  void PrintImpl() override { std::cout << 2; }
+};
+
+class Abstraction {
+ public:
+  virtual void Print() = 0;
+  virtual ~Abstraction() = default;
+};
+
+class A1 : public Abstraction {
+ public:
+  explicit A1(std::unique_ptr<AbstractionImpl> p) : p_(std::move(p)) {}
+
+  void Print() override { p_->PrintImpl(); }
+
+ private:
+  std::unique_ptr<AbstractionImpl> p_;
+};
+
+class A2 : public Abstraction {
+ public:
+  explicit A2(std::unique_ptr<AbstractionImpl> p) : p_(std::move(p)) {}
+
+  void Print() override { p_->PrintImpl(); }
+
+ private:
+  std::unique_ptr<AbstractionImpl> p_;
+};
+
+int main() {
+  std::unique_ptr<Abstraction> a1 =
+      std::make_unique<A1>(std::make_unique<AImpl1>());
+  std::unique_ptr<Abstraction> a2 =
+      std::make_unique<A1>(std::make_unique<AImpl2>());
+  std::unique_ptr<Abstraction> a3 =
+      std::make_unique<A2>(std::make_unique<AImpl1>());
+  std::unique_ptr<Abstraction> a4 =
+      std::make_unique<A2>(std::make_unique<AImpl2>());
+
+  a1->Print();  // 1
+  a2->Print();  // 2
+  a3->Print();  // 1
+  a4->Print();  // 2
+}
+
+    组合模式为组合对象提供了与单体对象一致的处理方式，从而使得用户可以忽略两者的差异并以统一方式使用
+
+class Shape {
+ public:
+  virtual void Display() = 0;
+  virtual void Append(const std::shared_ptr<Shape>&) {}
+  virtual void Remove(const std::shared_ptr<Shape>&) {}
+
+  virtual std::shared_ptr<Shape> Child(std::size_t) { return nullptr; }
+
+  virtual ~Shape() = default;
+};
+
+class Line : public Shape {  // 单体的线对象，除了 Display() 其他均使用默认实现
+ public:
+  void Display() override { std::cout << 1; }
+};
+
+class Rect : public Shape {  // 单体的矩形对象，除了 Display() 其他均使用默认实现
+ public:
+  void Display() override { std::cout << 2; }
+};
+
+class Picture : public Shape {  // 包含多个单体对象的组合对象
+ public:
+  void Display() override {  // 提供与单体对象一致的接口
+    for (auto&& x : shapes_) {
+      x->Display();
+    }
+  }
+
+  void Append(const std::shared_ptr<Shape>& s) override {
+    shapes_.emplace_back(s);
+  }
+
+  void Remove(const std::shared_ptr<Shape>& s) override {
+    if (const auto it = std::find(std::begin(shapes_), std::end(shapes_), s);
+        it != std::end(shapes_)) {
+      shapes_.erase(it);
+    }
+  }
+
+  std::shared_ptr<Shape> Child(std::size_t n) override { return shapes_.at(n); }
+
+ private:
+  std::vector<std::shared_ptr<Shape>> shapes_;
+};
+
+int main() {
+  std::unique_ptr<Shape> picture = std::make_unique<Picture>();
+  const auto line = std::make_shared<Line>();
+  const auto rect = std::make_shared<Rect>();
+
+  picture->Append(line);
+  picture->Append(rect);
+  picture->Display();  // 12
+
+  picture->Remove(line);
+  picture->Display();  // 2
+}
+
+#include <algorithm>
+#include <iostream>
+#include <memory>
+#include <vector>
+
+class Shape {
+ public:
+  virtual void Display() = 0;
+  virtual void Append(const std::shared_ptr<Shape>&) {}
+  virtual void Remove(const std::shared_ptr<Shape>&) {}
+
+  virtual std::shared_ptr<Shape> Child(std::size_t) { return nullptr; }
+
+  virtual ~Shape() = default;
+};
+
+class Line : public Shape {
+ public:
+  void Display() override { std::cout << 1; }
+};
+
+class Rect : public Shape {
+ public:
+  void Display() override { std::cout << 2; }
+};
+
+class Picture : public Shape {
+ public:
+  void Display() override {
+    for (auto&& x : shapes_) {
+      x->Display();
+    }
+  }
+
+  void Append(const std::shared_ptr<Shape>& s) override {
+    shapes_.emplace_back(s);
+  }
+
+  void Remove(const std::shared_ptr<Shape>& s) override {
+    if (const auto it = std::find(std::begin(shapes_), std::end(shapes_), s);
+        it != std::end(shapes_)) {
+      shapes_.erase(it);
+    }
+  }
+
+  std::shared_ptr<Shape> Child(std::size_t n) override { return shapes_.at(n); }
+
+ private:
+  std::vector<std::shared_ptr<Shape>> shapes_;
+};
+
+int main() {
+  std::unique_ptr<Shape> picture = std::make_unique<Picture>();
+  const auto line = std::make_shared<Line>();
+  const auto rect = std::make_shared<Rect>();
+
+  picture->Append(line);
+  picture->Append(rect);
+  picture->Display();  // 12
+
+  picture->Remove(line);
+  picture->Display();  // 2
+}
+
+    装饰器可以不改变定义地扩展功能
+
+// 定义接口的 Component
+class Shape {
+ public:
+  virtual void Display() = 0;
+  virtual ~Shape() = default;
+};
+
+// 定义实现的 ConcreteComponent
+class Line : public Shape {
+ public:
+  void Display() override { std::cout << "line\n"; }
+};
+
+// 持有一个 Component 指针的 Decorator，它提供与 Component 一致的接口
+class Decorator : public Shape {
+ public:
+  Decorator(std::unique_ptr<Shape> p) : shape_(std::move(p)) {}
+
+  void Display() override { shape_->Display(); }
+
+ private:
+  std::unique_ptr<Shape> shape_;
+};
+
+// 扩展接口功能的 ConcreteDecorator
+class ColorDecorator : public Decorator {
+ public:
+  using Decorator::Decorator;
+
+  void Display() override {
+    std::cout << "red ";
+    Decorator::Display();
+  }
+};
+
+int main() {
+  std::unique_ptr<Shape> colorDecorator =
+      std::make_unique<ColorDecorator>(std::make_unique<Line>());
+  colorDecorator->Display();  // red line
+}
+
+    用模板实现装饰器
+
+class Shape {
+ public:
+  virtual void Display() = 0;
+  virtual ~Shape() = default;
+};
+
+template <typename... T>
+class Line : public Shape, public T... {
+ public:
+  void Display() override {
+    std::apply([](auto&&... x) { (x.Display(), ...); },
+               std::forward_as_tuple(T()...));
+    std::cout << "line\n";
+  }
+};
+
+class ColorDecorator {
+ public:
+  void Display() { std::cout << "red "; }
+};
+
+class WeightDecorator {
+ public:
+  void Display() { std::cout << "bold "; }
+};
+
+int main() {
+  Line line1;
+  Line<ColorDecorator> line2;
+  Line<WeightDecorator> line3;
+  Line<ColorDecorator, WeightDecorator> line4;
+
+  line1.Display();  // line
+  line2.Display();  // red line
+  line3.Display();  // bold line
+  line4.Display();  // red bold line
+}
+
+    结合 CRTP
+
+class Shape {
+ public:
+  virtual void Display() = 0;
+  virtual ~Shape() = default;
+};
+
+template <template <typename> class... T>
+class Line : public Shape, public T<Line<>>... {
+ public:
+  void Display() override {
+    std::apply([](auto&&... x) { (x.Display(), ...); },
+               std::forward_as_tuple(T<Line<>>()...));
+    std::cout << "line\n";
+  }
+};
+
+template <template <typename> class... T>
+class Text : public Shape, public T<Text<>>... {
+ public:
+  void Display() override {
+    std::apply([](auto&&... x) { (x.Display(), ...); },
+               std::forward_as_tuple(T<Text<>>()...));
+    std::cout << "text\n";
+  }
+};
+
+template <typename T>
+class ColorDecorator {
+ public:
+  void Display() {
+    if constexpr (std::is_constructible_v<Line<>*, T*>) {
+      std::cout << "red ";
+    } else {
+      std::cout << "black ";
+    }
+  }
+};
+
+template <typename T>
+class WeightDecorator {
+ public:
+  void Display() {
+    if constexpr (std::is_constructible_v<Line<>*, T*>) {
+      std::cout << "bold ";
+    } else {
+      std::cout << "normal ";
+    }
+  }
+};
+
+int main() {
+  Line line1;
+  Line<ColorDecorator> line2;
+  Line<WeightDecorator> line3;
+  Line<ColorDecorator, WeightDecorator> line4;
+
+  line1.Display();  // line
+  line2.Display();  // red line
+  line3.Display();  // bold line
+  line4.Display();  // red bold line
+
+  Text text1;
+  Text<ColorDecorator> text2;
+  Text<WeightDecorator> text3;
+  Text<ColorDecorator, WeightDecorator> text4;
+
+  text1.Display();  // text
+  text2.Display();  // black text
+  text3.Display();  // normal text
+  text4.Display();  // black normal text
+}
+
+#include <iostream>
+#include <tuple>
+#include <type_traits>
+
+class Shape {
+ public:
+  virtual void Display() = 0;
+  virtual ~Shape() = default;
+};
+
+template <template <typename> class... T>
+class Line : public Shape, public T<Line<>>... {
+ public:
+  void Display() override {
+    std::apply([](auto&&... x) { (x.Display(), ...); },
+               std::forward_as_tuple(T<Line<>>()...));
+    std::cout << "line\n";
+  }
+};
+
+template <template <typename> class... T>
+class Text : public Shape, public T<Text<>>... {
+ public:
+  void Display() override {
+    std::apply([](auto&&... x) { (x.Display(), ...); },
+               std::forward_as_tuple(T<Text<>>()...));
+    std::cout << "text\n";
+  }
+};
+
+template <typename T>
+class ColorDecorator {
+ public:
+  void Display() {
+    if constexpr (std::is_constructible_v<Line<>*, T*>) {
+      std::cout << "red ";
+    } else {
+      std::cout << "black ";
+    }
+  }
+};
+
+template <typename T>
+class WeightDecorator {
+ public:
+  void Display() {
+    if constexpr (std::is_constructible_v<Line<>*, T*>) {
+      std::cout << "bold ";
+    } else {
+      std::cout << "normal ";
+    }
+  }
+};
+
+int main() {
+  Line line1;
+  Line<ColorDecorator> line2;
+  Line<WeightDecorator> line3;
+  Line<ColorDecorator, WeightDecorator> line4;
+
+  line1.Display();  // line
+  line2.Display();  // red line
+  line3.Display();  // bold line
+  line4.Display();  // red bold line
+
+  Text text1;
+  Text<ColorDecorator> text2;
+  Text<WeightDecorator> text3;
+  Text<ColorDecorator, WeightDecorator> text4;
+
+  text1.Display();  // text
+  text2.Display();  // black text
+  text3.Display();  // normal text
+  text4.Display();  // black normal text
+}
+
+    外观模式为一组子系统提供了一个高层接口，用户无需了解各个子系统的内部联系，只需要使用此高层接口
+
+class Scanner {
+ public:
+  void Scan() { std::cout << "generate token\n"; }
+};
+
+class Parser {
+ public:
+  void Parse() { std::cout << "build syntax tree\n"; }
+};
+
+class CodeGenerator {
+ public:
+  void GenerateCode() { std::cout << "generate machine code\n"; }
+};
+
+// 提供高层接口的Facade类
+class Compiler {
+ public:
+  void Run() {
+    Scanner s;
+    s.Scan();
+
+    Parser p;
+    p.Parse();
+
+    CodeGenerator c;
+    c.GenerateCode();
+  }
+};
+
+int main() {
+  Compiler compiler;
+  compiler.Run();
+}
+
+#include <iostream>
+
+class Scanner {
+ public:
+  void Scan() { std::cout << "generate token\n"; }
+};
+
+class Parser {
+ public:
+  void Parse() { std::cout << "build syntax tree\n"; }
+};
+
+class CodeGenerator {
+ public:
+  void GenerateCode() { std::cout << "generate machine code\n"; }
+};
+
+class Compiler {
+ public:
+  void Run() {
+    Scanner s;
+    s.Scan();
+
+    Parser p;
+    p.Parse();
+
+    CodeGenerator c;
+    c.GenerateCode();
+  }
+};
+
+int main() {
+  Compiler compiler;
+  compiler.Run();
+}
+
+    Flyweight 意指轻量，享元意指共享对象。存在大量细粒度对象的系统中，使用享元模式可以减少对相同对象的创建。比如文本编辑器的字符显示，如果为每个字符创建一个对象则会导致大量开销，而实际上大部分字符会重复出现，只需要创建一次即可
+
+class Flyweight {
+ public:
+  virtual void Print() = 0;
+  virtual ~Flyweight() = default;
+};
+
+class ConcreteFlyweight : public Flyweight {
+ public:
+  explicit ConcreteFlyweight(char key) : key_(key) {}
+
+  void Print() override { std::cout << key_; }
+
+ private:
+  char key_;
+};
+
+class FlyweightFactory {
+ public:
+  std::unique_ptr<Flyweight>& FlyweightPtr(char c) {
+    if (const auto it = m_.find(c); it != std::end(m_)) {
+      std::cout << "existing key: ";
+      return it->second;
+    }
+    std::unique_ptr<Flyweight> p = std::make_unique<ConcreteFlyweight>(c);
+    m_.emplace(c, std::move(p));
+    return m_.at(c);
+  }
+
+ private:
+  std::unordered_map<char, std::unique_ptr<Flyweight>> m_;
+};
+
+int main() {
+  FlyweightFactory factory;
+  factory.FlyweightPtr('a')->Print();  // a
+  factory.FlyweightPtr('a')->Print();  // existing key: a
+  factory.FlyweightPtr('b')->Print();  // b
+  factory.FlyweightPtr('b')->Print();  // existing key: a
+}
+
+#include <iostream>
+#include <memory>
+#include <unordered_map>
+#include <utility>
+
+class Flyweight {
+ public:
+  virtual void Print() = 0;
+  virtual ~Flyweight() = default;
+};
+
+class ConcreteFlyweight : public Flyweight {
+ public:
+  explicit ConcreteFlyweight(char key) : key_(key) {}
+
+  void Print() override { std::cout << key_; }
+
+ private:
+  char key_;
+};
+
+class FlyweightFactory {
+ public:
+  std::unique_ptr<Flyweight>& FlyweightPtr(char c) {
+    if (const auto it = m_.find(c); it != std::end(m_)) {
+      std::cout << "existing key: ";
+      return it->second;
+    }
+    std::unique_ptr<Flyweight> p = std::make_unique<ConcreteFlyweight>(c);
+    m_.emplace(c, std::move(p));
+    return m_.at(c);
+  }
+
+ private:
+  std::unordered_map<char, std::unique_ptr<Flyweight>> m_;
+};
+
+int main() {
+  FlyweightFactory factory;
+  factory.FlyweightPtr('a')->Print();  // a
+  factory.FlyweightPtr('a')->Print();  // existing key: a
+  factory.FlyweightPtr('b')->Print();  // b
+  factory.FlyweightPtr('b')->Print();  // existing key: a
+}
+
+    打开一个文档时，如果一次性创建所有图形对象，将带来巨大开销，因此应该根据需要创建可见部分。这可以通过提供一个图像代理来实现，代理在需要时才实例化图像对象
+
+// 定义接口的 Subject
+class Graphic {
+ public:
+  virtual void Display() = 0;
+  virtual ~Graphic() = default;
+};
+
+// 定义实现的 RealSubject
+class Image : public Graphic {
+ public:
+  void Display() override { std::cout << 1; }
+};
+
+// RealSubject 的代理
+class Proxy : public Graphic {
+ public:
+  void Display() override { ImageProxy().Display(); }
+
+ protected:
+  Image &ImageProxy() {
+    if (!p_) {
+      p_ = std::make_unique<Image>();
+    }
+    return *p_;
+  }
+
+ private:
+  std::unique_ptr<Image> p_;
+};
+
+int main() {
+  std::unique_ptr<Graphic> proxy = std::make_unique<Proxy>();
+  proxy->Display();  // 1
+}
+
+#include <iostream>
+#include <memory>
+
+class Graphic {
+ public:
+  virtual void Display() = 0;
+  virtual ~Graphic() = default;
+};
+
+class Image : public Graphic {
+ public:
+  void Display() override { std::cout << 1; }
+};
+
+class Proxy : public Graphic {
+ public:
+  void Display() override { ImageProxy().Display(); }
+
+ protected:
+  Image &ImageProxy() {
+    if (!p_) {
+      p_ = std::make_unique<Image>();
+    }
+    return *p_;
+  }
+
+ private:
+  std::unique_ptr<Image> p_;
+};
+
+int main() {
+  std::unique_ptr<Graphic> proxy = std::make_unique<Proxy>();
+  proxy->Display();  // 1
+}
+
+    责任链模式将对象连成一条链，让每个对象都有机会处理请求，从而解耦了发送者和处理者。发送者不需要关心具体的处理者，只要把请求发送到链上即可。如果当前对象不能处理请求，则沿着链转发给下一个对象，直到请求被一个对象处理为止。对象应按照从特殊到普遍的顺序链接，即处理范围最小的应最先链接
+
+#include <cstdint>
+#include <iostream>
+#include <memory>
+#include <utility>
+
+class Handler {
+ public:
+  virtual void Process(std::int32_t i) {
+    if (p_) {
+      p_->Process(i);  // 分派给链中的下一对象
+    } else {
+      std::cout << i << "can't be processed\n";  // 未指定下一对象则处理失败
+    }
+  }
+
+  void SetNext(std::shared_ptr<Handler> p) { p_ = std::move(p); }
+
+  virtual ~Handler() = default;
+
+ private:
+  std::shared_ptr<Handler> p_;
+};
+
+class A : public Handler {
+ public:
+  void Process(std::int32_t i) override {
+    if (i < 10) {
+      std::cout << i << " processed by A\n";
+    } else {
+      Handler::Process(i);  // 若不能处理则转发给链中下一对象
+    }
+  }
+};
+
+class B : public Handler {
+ public:
+  void Process(std::int32_t i) override {
+    if (i < 100) {
+      std::cout << i << " processed by B\n";
+    } else {
+      Handler::Process(i);
+    }
+  }
+};
+
+class C : public Handler {
+ public:
+  void Process(std::int32_t i) override {
+    if (i < 1000) {
+      std::cout << i << " processed by C\n";
+    } else {
+      Handler::Process(i);
+    }
+  }
+};
+
+int main() {
+  auto a = std::make_shared<A>();
+  auto b = std::make_shared<B>();
+  auto c = std::make_shared<C>();
+
+  a->SetNext(b);
+  b->SetNext(c);
+
+  a->Process(9);     // 9 processed by A
+  a->Process(999);   // 999 processed by C
+  a->Process(99);    // 99 processed by B
+  a->Process(9999);  // 9999 can't be processed
+}
+
+#include <cstdint>
+#include <iostream>
+#include <memory>
+#include <utility>
+
+class Handler {
+ public:
+  virtual void Process(std::int32_t i) {
+    if (p_) {
+      p_->Process(i);
+    } else {
+      std::cout << i << "can't be processed\n";
+    }
+  }
+
+  void SetNext(std::shared_ptr<Handler> p) { p_ = std::move(p); }
+
+  virtual ~Handler() = default;
+
+ private:
+  std::shared_ptr<Handler> p_;
+};
+
+class A : public Handler {
+ public:
+  void Process(std::int32_t i) override {
+    if (i < 10) {
+      std::cout << i << " processed by A\n";
+    } else {
+      Handler::Process(i);
+    }
+  }
+};
+
+class B : public Handler {
+ public:
+  void Process(std::int32_t i) override {
+    if (i < 100) {
+      std::cout << i << " processed by B\n";
+    } else {
+      Handler::Process(i);
+    }
+  }
+};
+
+class C : public Handler {
+ public:
+  void Process(std::int32_t i) override {
+    if (i < 1000) {
+      std::cout << i << " processed by C\n";
+    } else {
+      Handler::Process(i);
+    }
+  }
+};
+
+int main() {
+  auto a = std::make_shared<A>();
+  auto b = std::make_shared<B>();
+  auto c = std::make_shared<C>();
+
+  a->SetNext(b);
+  b->SetNext(c);
+
+  a->Process(9);     // 9 processed by A
+  a->Process(999);   // 999 processed by C
+  a->Process(99);    // 99 processed by B
+  a->Process(9999);  // 9999 can't be processed
+}
+
+    命令模式将请求封装成对象，解耦了调用者与处理者
+
+#include <functional>
+#include <iostream>
+#include <list>
+#include <memory>
+#include <utility>
+
+class Receiver {
+ public:
+  void Print() { std::cout << 1; }
+};
+
+// 处理者
+class Command {
+ public:
+  virtual void Execute() = 0;
+  virtual ~Command() = default;
+};
+
+template <typename T>
+class CommandA : public Command {
+ public:
+  using Action = std::function<void(T&)>;
+
+  CommandA(const std::shared_ptr<T>& p, Action a)
+      : receiver_(p), action_(std::move(a)) {}
+
+  void Execute() override {
+    std::cout << "A";
+    if (const auto p = receiver_.lock()) {
+      action_(*p);
+    }
+  }
+
+ private:
+  std::weak_ptr<T> receiver_;
+  Action action_;
+};
+
+template <typename T>
+class CommandB : public Command {
+ public:
+  using Action = std::function<void(T&)>;
+
+  CommandB(const std::shared_ptr<T>& p, Action a)
+      : receiver_(p), action_(std::move(a)) {}
+
+  void Execute() override {
+    std::cout << "B";
+    if (const auto p = receiver_.lock()) {
+      action_(*p);
+    }
+  }
+
+ private:
+  std::weak_ptr<T> receiver_;
+  Action action_;
+};
+
+// 调用者
+class Invoker : public Command {
+ public:
+  void Append(const std::shared_ptr<Command>& c) { commands_.emplace_back(c); }
+
+  void Remove(const std::shared_ptr<Command>& c) {
+    commands_.remove_if(
+        [&](std::weak_ptr<Command>& x) { return x.lock() == c; });
+  }
+
+  void Execute() override {
+    for (auto&& x : commands_) {
+      if (const auto p = x.lock()) {
+        p->Execute();
+      }
+    }
+  }
+
+ private:
+  std::list<std::weak_ptr<Command>> commands_;
+};
+
+int main() {
+  auto receiver = std::make_shared<Receiver>();
+  const std::shared_ptr<Command> commandA =
+      std::make_shared<CommandA<Receiver>>(receiver, &Receiver::Print);
+  const std::shared_ptr<Command> commandB =
+      std::make_shared<CommandB<Receiver>>(receiver, &Receiver::Print);
+
+  Invoker invoker;
+  invoker.Append(commandA);
+  invoker.Append(commandB);
+  invoker.Execute();  // A1B1
+}
+
+#include <functional>
+#include <iostream>
+#include <list>
+#include <memory>
+#include <utility>
+
+class Receiver {
+ public:
+  void Print() { std::cout << 1; }
+};
+
+class Command {
+ public:
+  virtual void Execute() = 0;
+  virtual ~Command() = default;
+};
+
+template <typename T>
+class CommandA : public Command {
+ public:
+  using Action = std::function<void(T&)>;
+
+  CommandA(const std::shared_ptr<T>& p, Action a)
+      : receiver_(p), action_(std::move(a)) {}
+
+  void Execute() override {
+    std::cout << "A";
+    if (const auto p = receiver_.lock()) {
+      action_(*p);
+    }
+  }
+
+ private:
+  std::weak_ptr<T> receiver_;
+  Action action_;
+};
+
+template <typename T>
+class CommandB : public Command {
+ public:
+  using Action = std::function<void(T&)>;
+
+  CommandB(const std::shared_ptr<T>& p, Action a)
+      : receiver_(p), action_(std::move(a)) {}
+
+  void Execute() override {
+    std::cout << "B";
+    if (const auto p = receiver_.lock()) {
+      action_(*p);
+    }
+  }
+
+ private:
+  std::weak_ptr<T> receiver_;
+  Action action_;
+};
+
+class Invoker : public Command {
+ public:
+  void Append(const std::shared_ptr<Command>& c) { commands_.emplace_back(c); }
+
+  void Remove(const std::shared_ptr<Command>& c) {
+    commands_.remove_if(
+        [&](std::weak_ptr<Command>& x) { return x.lock() == c; });
+  }
+
+  void Execute() override {
+    for (auto&& x : commands_) {
+      if (const auto p = x.lock()) {
+        p->Execute();
+      }
+    }
+  }
+
+ private:
+  std::list<std::weak_ptr<Command>> commands_;
+};
+
+int main() {
+  auto receiver = std::make_shared<Receiver>();
+  const std::shared_ptr<Command> commandA =
+      std::make_shared<CommandA<Receiver>>(receiver, &Receiver::Print);
+  const std::shared_ptr<Command> commandB =
+      std::make_shared<CommandB<Receiver>>(receiver, &Receiver::Print);
+
+  Invoker invoker;
+  invoker.Append(commandA);
+  invoker.Append(commandB);
+  invoker.Execute();  // A1B1
+}
+
+    定义一种特定语言，针对其文法定义一个解释器，使用这个解释器就能解释该语言表达的语句
+
+class Context {
+ public:
+  void SetMessage(std::string_view s) { s_ = s; }
+
+  std::string_view Message() const { return s_; }
+
+ private:
+  std::string s_;
+};
+
+class Expression {
+ public:
+  virtual bool Interpret(const Context&) = 0;
+  virtual ~Expression() = default;
+};
+
+class TerminalExpression : public Expression {
+ public:
+  TerminalExpression(std::string_view s) : s_(s) {}
+
+  bool Interpret(const Context& context) override {
+    return context.Message().find(s_) == std::string_view::npos;
+  }
+
+ private:
+  std::string s_;
+};
+
+class AndExpression : public Expression {
+ public:
+  AndExpression(std::shared_ptr<Expression> p, std::shared_ptr<Expression> q)
+      : p_(std::move(p)), q_(std::move(q)) {}
+
+  bool Interpret(const Context& context) override {
+    return p_->Interpret(context) && q_->Interpret(context);
+  }
+
+ private:
+  std::shared_ptr<Expression> p_;
+  std::shared_ptr<Expression> q_;
+};
+
+int main() {
+  std::shared_ptr<Expression> a = std::make_shared<TerminalExpression>("sb");
+  std::shared_ptr<Expression> b = std::make_shared<TerminalExpression>("fk");
+  std::shared_ptr<Expression> expression =
+      std::make_shared<AndExpression>(a, b);
+
+  Context context;
+  context.SetMessage("hello world");
+
+  if (expression->Interpret(context)) {
+    std::cout << context.Message();
+  } else {
+    std::cout << "sensitive words";
+  }
+}
+
+#include <iostream>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <utility>
+
+class Context {
+ public:
+  void SetMessage(std::string_view s) { s_ = s; }
+
+  std::string_view Message() const { return s_; }
+
+ private:
+  std::string s_;
+};
+
+class Expression {
+ public:
+  virtual bool Interpret(const Context&) = 0;
+  virtual ~Expression() = default;
+};
+
+class TerminalExpression : public Expression {
+ public:
+  TerminalExpression(std::string_view s) : s_(s) {}
+
+  bool Interpret(const Context& context) override {
+    return context.Message().find(s_) == std::string_view::npos;
+  }
+
+ private:
+  std::string s_;
+};
+
+class AndExpression : public Expression {
+ public:
+  AndExpression(std::shared_ptr<Expression> p, std::shared_ptr<Expression> q)
+      : p_(std::move(p)), q_(std::move(q)) {}
+
+  bool Interpret(const Context& context) override {
+    return p_->Interpret(context) && q_->Interpret(context);
+  }
+
+ private:
+  std::shared_ptr<Expression> p_;
+  std::shared_ptr<Expression> q_;
+};
+
+int main() {
+  std::shared_ptr<Expression> a = std::make_shared<TerminalExpression>("sb");
+  std::shared_ptr<Expression> b = std::make_shared<TerminalExpression>("fk");
+  std::shared_ptr<Expression> expression =
+      std::make_shared<AndExpression>(a, b);
+
+  Context context;
+  context.SetMessage("hello world");
+
+  if (expression->Interpret(context)) {
+    std::cout << context.Message();
+  } else {
+    std::cout << "sensitive words";
+  }
+}
+
+    提供迭代器用于顺序访问聚合对象中的各个元素，而不暴露对象内部表示
+
+#include <cstdint>
+#include <iostream>
+#include <utility>
+#include <vector>
+
+template <typename T>
+class List;
+
+template <typename T>
+class Iterator {
+ public:
+  Iterator(List<T>& list) : list_(list) {}
+
+  void operator++() { ++index_; }
+
+  bool IsDone() { return index_ >= list_.Size(); }
+
+  T& operator*() { return list_[index_]; }
+
+ private:
+  List<T>& list_;
+  std::size_t index_ = 0;
+};
+
+template <typename T>
+class List {
+ public:
+  Iterator<T> Begin() { return Iterator<T>{*this}; }
+
+  void Append(T&& x) { data_.emplace_back(std::forward<T>(x)); }
+
+  std::size_t Size() { return std::size(data_); }
+
+  T& operator[](std::size_t n) { return data_.at(n); }
+
+ private:
+  std::vector<T> data_;
+};
+
+int main() {
+  List<std::int32_t> list;
+  list.Append(2);
+  list.Append(3);
+  list.Append(1);
+
+  for (auto it = list.Begin(); !it.IsDone(); ++it) {
+    std::cout << *it;  // 231
+  }
+}
+
+#include <cstdint>
+#include <iostream>
+#include <utility>
+#include <vector>
+
+template <typename T>
+class List;
+
+template <typename T>
+class Iterator {
+ public:
+  Iterator(List<T>& list) : list_(list) {}
+
+  void operator++() { ++index_; }
+
+  bool IsDone() { return index_ >= list_.Size(); }
+
+  T& operator*() { return list_[index_]; }
+
+ private:
+  List<T>& list_;
+  std::size_t index_ = 0;
+};
+
+template <typename T>
+class List {
+ public:
+  Iterator<T> Begin() { return Iterator<T>{*this}; }
+
+  void Append(T&& x) { data_.emplace_back(std::forward<T>(x)); }
+
+  std::size_t Size() { return std::size(data_); }
+
+  T& operator[](std::size_t n) { return data_.at(n); }
+
+ private:
+  std::vector<T> data_;
+};
+
+int main() {
+  List<std::int32_t> list;
+  list.Append(2);
+  list.Append(3);
+  list.Append(1);
+
+  for (auto it = list.Begin(); !it.IsDone(); ++it) {
+    std::cout << *it;  // 231
+  }
+}
+
+    成员将请求发送给中介者，中介者再将该请求转发给其他成员，从而解耦了成员之间的交互关系
+
+#include <iostream>
+#include <list>
+#include <memory>
+#include <string_view>
+#include <utility>
+
+class Colleague;
+
+// 中介者接口
+class Mediator {
+ public:
+  virtual void Notify(const std::shared_ptr<Colleague>&, std::string_view) = 0;
+  virtual ~Mediator() = default;
+};
+
+// 成员接口
+class Colleague {
+ public:
+  explicit Colleague(const std::shared_ptr<Mediator>& p) : mediator_(p) {}
+  virtual void Send(std::string_view) = 0;
+  virtual void Receive(std::string_view) const = 0;
+  virtual ~Colleague() = default;
+
+ protected:
+  std::weak_ptr<Mediator> mediator_;
+};
+
+class ColleagueA : public Colleague,
+                   public std::enable_shared_from_this<ColleagueA> {
+ public:
+  using Colleague::Colleague;
+
+  void Send(std::string_view s) override {
+    mediator_.lock()->Notify(shared_from_this(), s);
+  }
+
+  void Receive(std::string_view s) const override {
+    std::cout << "A receive: " << s << '\n';
+  }
+};
+
+class ColleagueB : public Colleague,
+                   public std::enable_shared_from_this<ColleagueB> {
+ public:
+  using Colleague::Colleague;
+
+  void Send(std::string_view s) override {
+    mediator_.lock()->Notify(shared_from_this(), s);
+  }
+
+  void Receive(std::string_view s) const override {
+    std::cout << "B receive: " << s << '\n';
+  }
+};
+
+// 中介者实现
+class ConcreteMediator : public Mediator {
+ public:
+  void Append(const std::shared_ptr<Colleague>& c) {
+    colleagues_.emplace_back(c);
+  }
+
+  void Notify(const std::shared_ptr<Colleague>& c,
+              std::string_view s) override {
+    for (auto&& x : colleagues_) {
+      if (const auto p = x.lock()) {
+        if (p != c) {
+          p->Receive(s);  // 转发给其他成员
+        }
+      }
+    }
+  }
+
+ private:
+  std::list<std::weak_ptr<Colleague>> colleagues_;
+};
+
+int main() {
+  auto mediator = std::make_shared<ConcreteMediator>();
+  auto colleagueA = std::make_shared<ColleagueA>(mediator);
+  auto colleagueB = std::make_shared<ColleagueB>(mediator);
+
+  mediator->Append(colleagueA);
+  mediator->Append(colleagueB);
+
+  colleagueA->Send("hello");  // B receive: hello
+  colleagueB->Send("world");  // A receive: world
+}
+
+#include <iostream>
+#include <list>
+#include <memory>
+#include <string_view>
+#include <utility>
+
+class Colleague;
+
+class Mediator {
+ public:
+  virtual void Notify(const std::shared_ptr<Colleague>&, std::string_view) = 0;
+  virtual ~Mediator() = default;
+};
+
+class Colleague {
+ public:
+  explicit Colleague(const std::shared_ptr<Mediator>& p) : mediator_(p) {}
+  virtual void Send(std::string_view) = 0;
+  virtual void Receive(std::string_view) const = 0;
+  virtual ~Colleague() = default;
+
+ protected:
+  std::weak_ptr<Mediator> mediator_;
+};
+
+class ColleagueA : public Colleague,
+                   public std::enable_shared_from_this<ColleagueA> {
+ public:
+  using Colleague::Colleague;
+
+  void Send(std::string_view s) override {
+    mediator_.lock()->Notify(shared_from_this(), s);
+  }
+
+  void Receive(std::string_view s) const override {
+    std::cout << "A receive: " << s << '\n';
+  }
+};
+
+class ColleagueB : public Colleague,
+                   public std::enable_shared_from_this<ColleagueB> {
+ public:
+  using Colleague::Colleague;
+
+  void Send(std::string_view s) override {
+    mediator_.lock()->Notify(shared_from_this(), s);
+  }
+
+  void Receive(std::string_view s) const override {
+    std::cout << "B receive: " << s << '\n';
+  }
+};
+
+class ConcreteMediator : public Mediator {
+ public:
+  void Append(const std::shared_ptr<Colleague>& c) {
+    colleagues_.emplace_back(c);
+  }
+
+  void Notify(const std::shared_ptr<Colleague>& c,
+              std::string_view s) override {
+    for (auto&& x : colleagues_) {
+      if (const auto p = x.lock()) {
+        if (p != c) {
+          p->Receive(s);
+        }
+      }
+    }
+  }
+
+ private:
+  std::list<std::weak_ptr<Colleague>> colleagues_;
+};
+
+int main() {
+  auto mediator = std::make_shared<ConcreteMediator>();
+  auto colleagueA = std::make_shared<ColleagueA>(mediator);
+  auto colleagueB = std::make_shared<ColleagueB>(mediator);
+
+  mediator->Append(colleagueA);
+  mediator->Append(colleagueB);
+
+  colleagueA->Send("hello");  // B receive: hello
+  colleagueB->Send("world");  // A receive: world
+}
+
+    用一个备忘录保存源对象状态
+
+class Memento {
+ public:
+  Memento(std::int32_t n = 0) : value_(n) {}
+
+  std::int32_t Value() const { return value_; }
+
+ private:
+  std::int32_t value_;
+};
+
+    源对象状态的保存和恢复都通过备忘录来执行
+
+class Originator {
+ public:
+  Originator(std::int32_t n = 0) : value_(n) {}
+
+  Memento ValueMemento() const { return Memento{value_}; }
+
+  void Load(const Memento& m) { value_ = m.Value(); }
+
+  void PrintValue() const { std::cout << value_ << '\n'; }
+
+  void SetValue(std::int32_t n) { value_ = n; }
+
+ private:
+  std::int32_t value_;
+};
+
+    负责人保存一系列备忘录，供源对象使用
+
+class Caretaker {
+ public:
+  Memento& State(const std::string& s) { return mementos_.at(s); }
+
+  void SetState(const std::string& s, const Memento& m) {
+    mementos_.try_emplace(s, m);
+  }
+
+ private:
+  std::unordered_map<std::string, Memento> mementos_;
+};
+
+int main() {
+  Caretaker caretaker;
+  Originator originator(1);
+  caretaker.SetState("one", originator.ValueMemento());
+  originator.SetValue(2);
+  caretaker.SetState("two", originator.ValueMemento());
+  originator.SetValue(3);
+  caretaker.SetState("three", originator.ValueMemento());
+
+  originator.Load(caretaker.State("two"));
+  originator.PrintValue();  // 2
+  originator.Load(caretaker.State("one"));
+  originator.PrintValue();  // 1
+  originator.Load(caretaker.State("three"));
+  originator.PrintValue();  // 3
+}
+
+#include <cstdint>
+#include <iostream>
+#include <unordered_map>
+
+class Memento {
+ public:
+  Memento(std::int32_t n = 0) : value_(n) {}
+
+  std::int32_t Value() const { return value_; }
+
+ private:
+  std::int32_t value_;
+};
+
+class Originator {
+ public:
+  Originator(std::int32_t n = 0) : value_(n) {}
+
+  Memento ValueMemento() const { return Memento{value_}; }
+
+  void Load(const Memento& m) { value_ = m.Value(); }
+
+  void PrintValue() const { std::cout << value_ << '\n'; }
+
+  void SetValue(std::int32_t n) { value_ = n; }
+
+ private:
+  std::int32_t value_;
+};
+
+class Caretaker {
+ public:
+  Memento& State(const std::string& s) { return mementos_.at(s); }
+
+  void SetState(const std::string& s, const Memento& m) {
+    mementos_.try_emplace(s, m);
+  }
+
+ private:
+  std::unordered_map<std::string, Memento> mementos_;
+};
+
+int main() {
+  Caretaker caretaker;
+  Originator originator(1);
+  caretaker.SetState("one", originator.ValueMemento());
+  originator.SetValue(2);
+  caretaker.SetState("two", originator.ValueMemento());
+  originator.SetValue(3);
+  caretaker.SetState("three", originator.ValueMemento());
+
+  originator.Load(caretaker.State("two"));
+  originator.PrintValue();  // 2
+  originator.Load(caretaker.State("one"));
+  originator.PrintValue();  // 1
+  originator.Load(caretaker.State("three"));
+  originator.PrintValue();  // 3
+}
+
+    观察者保存一个目标指针，用于获取目标对象的状态
+
+// 目标
+class Subject;
+
+// 观察者接口
+class Observer {
+ public:
+  explicit Observer(const std::shared_ptr<Subject>& p) : subject_(p) {}
+  virtual void Update() = 0;
+  virtual ~Observer() = default;
+
+ protected:
+  std::weak_ptr<Subject> subject_;
+};
+
+    目标保存一系列观察者，发出通知时，更新所有观察者，以使观察者获取目标对象的新状态
+
+class Subject {
+ public:
+  void Append(const std::shared_ptr<Observer>& o) {
+    observers_.emplace_back(o);
+  }
+
+  void Remove(const std::shared_ptr<Observer>& o) { observers_.remove(o); }
+
+  void Notify() {
+    for (auto&& x : observers_) {
+      x->Update();
+    }
+  }
+
+  void SetValue(std::int32_t n) { value_ = n; }
+
+  std::int32_t Value() const { return value_; }
+
+ private:
+  std::list<std::shared_ptr<Observer>> observers_;
+  std::int32_t value_ = 0;
+};
+
+    具体的观察者
+
+class ObserverA : public Observer {
+ public:
+  using Observer::Observer;
+
+  void Update() override {
+    if (const auto p = subject_.lock()) {
+      std::cout << "Subject value in A: " << p->Value() << '\n';
+    }
+  }
+};
+
+class ObserverB : public Observer {
+ public:
+  using Observer::Observer;
+
+  void Update() override {
+    if (const auto p = subject_.lock()) {
+      std::cout << "Subject value in B: " << p->Value() << '\n';
+    }
+  }
+};
+
+int main() {
+  auto subject = std::make_shared<Subject>();
+  auto a = std::make_shared<ObserverA>(subject);
+  auto b = std::make_shared<ObserverB>(subject);
+
+  subject->Append(a);
+  subject->Append(b);
+
+  subject->SetValue(3);
+  subject->Notify();  // subject_ value in A: 3\nsubject value in B: 3\n
+}
+
+#include <cstdint>
+#include <iostream>
+#include <list>
+#include <memory>
+
+class Subject;
+
+class Observer {
+ public:
+  explicit Observer(const std::shared_ptr<Subject>& p) : subject_(p) {}
+  virtual void Update() = 0;
+  virtual ~Observer() = default;
+
+ protected:
+  std::weak_ptr<Subject> subject_;
+};
+
+class Subject {
+ public:
+  void Append(const std::shared_ptr<Observer>& o) {
+    observers_.emplace_back(o);
+  }
+
+  void Remove(const std::shared_ptr<Observer>& o) { observers_.remove(o); }
+
+  void Notify() {
+    for (auto&& x : observers_) {
+      x->Update();
+    }
+  }
+
+  void SetValue(std::int32_t n) { value_ = n; }
+
+  std::int32_t Value() const { return value_; }
+
+ private:
+  std::list<std::shared_ptr<Observer>> observers_;
+  std::int32_t value_ = 0;
+};
+
+class ObserverA : public Observer {
+ public:
+  using Observer::Observer;
+
+  void Update() override {
+    if (const auto p = subject_.lock()) {
+      std::cout << "Subject value in A: " << p->Value() << '\n';
+    }
+  }
+};
+
+class ObserverB : public Observer {
+ public:
+  using Observer::Observer;
+
+  void Update() override {
+    if (const auto p = subject_.lock()) {
+      std::cout << "Subject value in B: " << p->Value() << '\n';
+    }
+  }
+};
+
+int main() {
+  auto subject = std::make_shared<Subject>();
+  auto a = std::make_shared<ObserverA>(subject);
+  auto b = std::make_shared<ObserverB>(subject);
+
+  subject->Append(a);
+  subject->Append(b);
+
+  subject->SetValue(3);
+  subject->Notify();  // subject_ value in A: 3\nsubject value in B: 3\n
+}
+
+    目标对象执行相同操作时，如果状态不同，则执行结果也不同。让目标对象持有一个状态对象的指针，目标的操作都转发给状态对象，改变目标的状态即可相应地改变目标操作，看起来就像整个类都被修改了
+
+class Connection;
+
+class State {
+ public:
+  virtual void Open(const Connection&) const = 0;
+  virtual void Close(const Connection&) const = 0;
+  virtual ~State() = default;
+};
+
+class Connection {
+ public:
+  Connection(std::unique_ptr<State> p) : p_(std::move(p)) {}
+
+  void ChangeState(std::unique_ptr<State> p) { p_ = std::move(p); }
+
+  void Open() const { p_->Open(*this); }
+
+  void Close() const { p_->Close(*this); }
+
+ private:
+  std::unique_ptr<State> p_;
+};
+
+class StateA : public State {
+ public:
+  void Open(const Connection&) const override {
+    std::cout << "open in stateA\n";
+  }
+
+  void Close(const Connection&) const override {
+    std::cout << "close in stateA\n";
+  }
+};
+
+class StateB : public State {
+ public:
+  void Open(const Connection&) const override {
+    std::cout << "open in stateB\n";
+  }
+
+  void Close(const Connection&) const override {
+    std::cout << "close in stateB\n";
+  }
+};
+
+int main() {
+  Connection connection{std::make_unique<StateA>()};
+  connection.Open();   // open in stateA
+  connection.Close();  // close in stateA
+
+  connection.ChangeState(std::make_unique<StateB>());
+  connection.Open();   // open in stateB
+  connection.Close();  // close in stateB
+}
+
+#include <iostream>
+#include <memory>
+
+class Connection;
+
+class State {
+ public:
+  virtual void Open(const Connection&) const = 0;
+  virtual void Close(const Connection&) const = 0;
+  virtual ~State() = default;
+};
+
+class Connection {
+ public:
+  Connection(std::unique_ptr<State> p) : p_(std::move(p)) {}
+
+  void ChangeState(std::unique_ptr<State> p) { p_ = std::move(p); }
+
+  void Open() const { p_->Open(*this); }
+
+  void Close() const { p_->Close(*this); }
+
+ private:
+  std::unique_ptr<State> p_;
+};
+
+class StateA : public State {
+ public:
+  void Open(const Connection&) const override {
+    std::cout << "open in stateA\n";
+  }
+
+  void Close(const Connection&) const override {
+    std::cout << "close in stateA\n";
+  }
+};
+
+class StateB : public State {
+ public:
+  void Open(const Connection&) const override {
+    std::cout << "open in stateB\n";
+  }
+
+  void Close(const Connection&) const override {
+    std::cout << "close in stateB\n";
+  }
+};
+
+int main() {
+  Connection connection{std::make_unique<StateA>()};
+  connection.Open();   // open in stateA
+  connection.Close();  // close in stateA
+
+  connection.ChangeState(std::make_unique<StateB>());
+  connection.Open();   // open in stateB
+  connection.Close();  // close in stateB
+}
+
+    策略模式和状态模式的实现几乎一样：目标对象持有一个策略对象的指针，并把操作转发给策略对象。区别在于，策略由用户提供，针对单个操作，目标不可切换策略，而状态由内部提供，可以切换，并且会改变目标的所有操作
+
+class Strategy {
+ public:
+  virtual void Print() = 0;
+  virtual ~Strategy() = default;
+};
+
+class StrategyA : public Strategy {
+ public:
+  void Print() override { std::cout << "StrategyA\n"; }
+};
+
+class StrategyB : public Strategy {
+ public:
+  void Print() override { std::cout << "StrategyB\n"; }
+};
+
+class Context {
+ public:
+  Context(std::unique_ptr<Strategy> p) : p_(std::move(p)) {}
+
+  void Print() const { p_->Print(); }
+
+ private:
+  std::unique_ptr<Strategy> p_;
+};
+
+int main() {
+  Context a{std::make_unique<StrategyA>()};
+  Context b{std::make_unique<StrategyB>()};
+
+  a.Print();  // StrategyA
+  b.Print();  // StrategyB
+}
+
+#include <iostream>
+#include <memory>
+
+class Strategy {
+ public:
+  virtual void Print() = 0;
+  virtual ~Strategy() = default;
+};
+
+class StrategyA : public Strategy {
+ public:
+  void Print() override { std::cout << "StrategyA\n"; }
+};
+
+class StrategyB : public Strategy {
+ public:
+  void Print() override { std::cout << "StrategyB\n"; }
+};
+
+class Context {
+ public:
+  Context(std::unique_ptr<Strategy> p) : p_(std::move(p)) {}
+
+  void Print() const { p_->Print(); }
+
+ private:
+  std::unique_ptr<Strategy> p_;
+};
+
+int main() {
+  Context a{std::make_unique<StrategyA>()};
+  Context b{std::make_unique<StrategyB>()};
+
+  a.Print();  // StrategyA
+  b.Print();  // StrategyB
+}
+
+    在基类定义一个包含多个操作的方法，每个操作在派生类中实现，基类的这个方法就是模板方法。在 C++ 中这种手法称为 NVI（non-virtual interface），模板方法是一个非虚函数，其中的操作为虚函数，并且作为私有成员不暴露给外部
+
+class Abstract {
+ public:
+  void TemplateMethod() {
+    FunctionA();
+    FunctionB();
+    FunctionC();
+  }
+
+  virtual ~Abstract() = default;
+
+ private:
+  virtual void FunctionA() = 0;
+  virtual void FunctionB() = 0;
+  virtual void FunctionC() = 0;
+};
+
+class A : public Abstract {
+ private:
+  void FunctionA() override { std::cout << 1; }
+  void FunctionB() override { std::cout << 2; }
+  void FunctionC() override { std::cout << 3; }
+};
+
+class B : public Abstract {
+ private:
+  void FunctionA() override { std::cout << 4; }
+  void FunctionB() override { std::cout << 5; }
+  void FunctionC() override { std::cout << 6; }
+};
+
+int main() {
+  std::unique_ptr<Abstract> a = std::make_unique<A>();
+  std::unique_ptr<Abstract> b = std::make_unique<B>();
+
+  a->TemplateMethod();  // 123
+  b->TemplateMethod();  // 456
+}
+
+#include <iostream>
+#include <memory>
+
+class Abstract {
+ public:
+  void TemplateMethod() {
+    FunctionA();
+    FunctionB();
+    FunctionC();
+  }
+
+  virtual ~Abstract() = default;
+
+ private:
+  virtual void FunctionA() = 0;
+  virtual void FunctionB() = 0;
+  virtual void FunctionC() = 0;
+};
+
+class A : public Abstract {
+ private:
+  void FunctionA() override { std::cout << 1; }
+  void FunctionB() override { std::cout << 2; }
+  void FunctionC() override { std::cout << 3; }
+};
+
+class B : public Abstract {
+ private:
+  void FunctionA() override { std::cout << 4; }
+  void FunctionB() override { std::cout << 5; }
+  void FunctionC() override { std::cout << 6; }
+};
+
+int main() {
+  std::unique_ptr<Abstract> a = std::make_unique<A>();
+  std::unique_ptr<Abstract> b = std::make_unique<B>();
+
+  a->TemplateMethod();  // 123
+  b->TemplateMethod();  // 456
+}
+
+    可访问元素为有限个，在访问者中定义访问所有元素的接口
+
+class Element;
+
+class Visitor {
+ public:
+  virtual void VisitA(const Element&) = 0;
+  virtual void VisitB(const Element&) = 0;
+  virtual ~Visitor() = default;
+};
+
+class ConcreteVisitor : public Visitor {
+ public:
+  void VisitA(const Element&) override { std::cout << "visit A\n"; }
+
+  void VisitB(const Element&) override { std::cout << "visit B\n"; }
+};
+
+    在可访问元素中提供接待接口，参数为访问者，接待方法调用访问者的访问方法
+
+class Element {
+ public:
+  virtual void Accept(const std::shared_ptr<Visitor>& vistor) = 0;
+  virtual ~Element() = default;
+};
+
+class ElementA : public Element {
+ public:
+  void Accept(const std::shared_ptr<Visitor>& vistor) override {
+    vistor->VisitA(*this);
+  }
+};
+
+class ElementB : public Element {
+ public:
+  void Accept(const std::shared_ptr<Visitor>& vistor) override {
+    vistor->VisitB(*this);
+  }
+};
+
+    最后提供一个保存所有可访问元素的对象
+
+class ObjectStructure {
+ public:
+  void Append(const std::shared_ptr<Element>& element) {
+    elements_.emplace_back(element);
+  }
+
+  void Remove(const std::shared_ptr<Element>& element) {
+    elements_.remove(element);
+  }
+
+  void Accept(const std::shared_ptr<Visitor>& visitor) {
+    for (auto&& x : elements_) {
+      x->Accept(visitor);
+    }
+  }
+
+ private:
+  std::list<std::shared_ptr<Element>> elements_;
+};
+
+int main() {
+  std::shared_ptr<Element> a = std::make_shared<ElementA>();
+  std::shared_ptr<Element> b = std::make_shared<ElementB>();
+
+  ObjectStructure o;
+  o.Append(a);
+  o.Append(b);
+
+  std::shared_ptr<Visitor> visitor = std::make_shared<ConcreteVisitor>();
+  o.Accept(visitor);  // visit A\nvisit B\n
+}
+
+#include <iostream>
+#include <list>
+#include <memory>
+
+class Element;
+
+class Visitor {
+ public:
+  virtual void VisitA(const Element&) = 0;
+  virtual void VisitB(const Element&) = 0;
+  virtual ~Visitor() = default;
+};
+
+class ConcreteVisitor : public Visitor {
+ public:
+  void VisitA(const Element&) override { std::cout << "visit A\n"; }
+
+  void VisitB(const Element&) override { std::cout << "visit B\n"; }
+};
+
+class Element {
+ public:
+  virtual void Accept(const std::shared_ptr<Visitor>& vistor) = 0;
+  virtual ~Element() = default;
+};
+
+class ElementA : public Element {
+ public:
+  void Accept(const std::shared_ptr<Visitor>& vistor) override {
+    vistor->VisitA(*this);
+  }
+};
+
+class ElementB : public Element {
+ public:
+  void Accept(const std::shared_ptr<Visitor>& vistor) override {
+    vistor->VisitB(*this);
+  }
+};
+
+class ObjectStructure {
+ public:
+  void Append(const std::shared_ptr<Element>& element) {
+    elements_.emplace_back(element);
+  }
+
+  void Remove(const std::shared_ptr<Element>& element) {
+    elements_.remove(element);
+  }
+
+  void Accept(const std::shared_ptr<Visitor>& visitor) {
+    for (auto&& x : elements_) {
+      x->Accept(visitor);
+    }
+  }
+
+ private:
+  std::list<std::shared_ptr<Element>> elements_;
+};
+
+int main() {
+  std::shared_ptr<Element> a = std::make_shared<ElementA>();
+  std::shared_ptr<Element> b = std::make_shared<ElementB>();
+
+  ObjectStructure o;
+  o.Append(a);
+  o.Append(b);
+
+  std::shared_ptr<Visitor> visitor = std::make_shared<ConcreteVisitor>();
+  o.Accept(visitor);  // visit A\nvisit B\n
+}
+

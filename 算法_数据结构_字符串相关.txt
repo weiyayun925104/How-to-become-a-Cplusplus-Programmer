@@ -1,0 +1,1618 @@
+knuth_morris_pratt.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdarg.h>
+#include <math.h>
+#include <float.h>
+#include <time.h>
+#include <ctype.h>
+
+#ifndef NULL
+#define NULL ((void*) 0)
+#endif
+
+FILE *fd;
+int n;
+char arrTextStr[64][128];
+char arrPatternStr[64][128];
+
+typedef struct {uint32_t count;uint32_t max;void **mem;} vector_t;
+
+void vector_init(vector_t *vec){vec->count = 0;vec->max = 0;vec->mem = NULL;}
+void vector_free(vector_t *vec){if(vec->mem != NULL){free(vec->mem);}vector_init(vec);}
+void vector_get(vector_t *vec, int index, void **item){if(index >= 0 && index < vec->count){*item = vec->mem[index];}}
+
+int vector_reserve(vector_t *vec, int size)
+{
+	int max;void *temp;max = 0;
+	if(size <= vec->max){return 1;}
+	else if(vec->max == 0 && size > 0){max = 8;if(size > 8){do{max *= 2;}while(size > max);}}
+	else if(vec->max > 0 && size > vec->max){max = vec->max;do{max *= 2;}while(size > max);}
+	if(max > 0)
+	{
+		temp = NULL;temp = realloc(vec->mem, max * sizeof(void *));
+		if(temp != NULL){vec->mem = temp;vec->max = max;return 1;}else{return 0;}
+	}
+	else {return 1;}
+}
+
+int vector_add(vector_t *vec, void *item)
+{
+	if(vector_reserve(vec, vec->count + 1) == 1){vec->mem[vec->count] = item;vec->count++;return 1;}else{return 0;}
+}
+void kmp_makeNext(char *pattern, uint32_t m, int *next)
+{
+	uint32_t index;uint32_t k;next[0] = 0;k = 0;
+	for(index = 1;index < m;index++)
+	{
+		while(k > 0 && pattern[k] != pattern[index]){k = next[k-1];}if(pattern[k] == pattern[index]){k++;}next[index] = k;
+	}
+}
+char * kmp(char *text, uint32_t n, char *pattern, uint32_t m, vector_t *vec)
+{
+	int *next;uint32_t i;uint32_t index;int result;if(text == NULL){return NULL;}if(n <= 0){return NULL;}if(pattern == NULL){return NULL;}
+	if(m <= 0){return NULL;}if(m > n){return NULL;}next = NULL;next = malloc(m*sizeof(int));if(next == NULL){return NULL;}
+	result = -1;if(vec != NULL){vector_free(vec);}kmp_makeNext(pattern, m, next);index = 0;
+	for(i = 0; i < n; i++)
+	{
+		while(index > 0 && pattern[index] != text[i]){index = next[index-1];}if(pattern[index] == text[i]){index++;}
+		if(index == m)
+		{
+			if(result == -1){result = (i+1-m);}if(vec != NULL){vector_add(vec, (text+(i+1-m)));}index = next[index-1];
+		}
+	}
+	free(next);if(result == -1){return NULL;}return (text+result);
+}
+
+void build()
+{
+	int i;int j;uint32_t length;vector_t oneVec;char *one;char output[128];memset(arrTextStr,0,sizeof(arrTextStr));memset(arrPatternStr,0,sizeof(arrPatternStr));
+	memset(output,0,sizeof(output));n = 10;vector_init(&oneVec);
+	strcpy(arrTextStr[0],"weiyayunabcdefgh") ;strcpy(arrPatternStr[0],"we");
+	strcpy(arrTextStr[1],"weiyayunabcdefgh") ;strcpy(arrPatternStr[1],"iy");
+	strcpy(arrTextStr[2],"weiyayunabcdefgh") ;strcpy(arrPatternStr[2],"ay");
+	strcpy(arrTextStr[3],"weiyayunabcdefgh") ;strcpy(arrPatternStr[3],"un");
+	strcpy(arrTextStr[4],"weiyayunabcdefgh") ;strcpy(arrPatternStr[4],"ab");
+	strcpy(arrTextStr[5],"weiyayunabcdefgh") ;strcpy(arrPatternStr[5],"cd");
+	strcpy(arrTextStr[6],"weiyayunabcdefgh") ;strcpy(arrPatternStr[6],"ef");
+	strcpy(arrTextStr[7],"weiyayunabcdefgh") ;strcpy(arrPatternStr[7],"gh");
+	strcpy(arrTextStr[8],"weiyayunabcdefgh") ;strcpy(arrPatternStr[8],"y");
+	strcpy(arrTextStr[9],"weiyayunabcdefgh") ;strcpy(arrPatternStr[9],"e");
+	fd=fopen("out.txt", "wb");
+	for(i = 0; i < 8; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = kmp(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, NULL);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+	}
+	fprintf(fd, "\n");fprintf(fd, "\n");
+	for(i = 8; i < n; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = kmp(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, &oneVec);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}
+		for(j = 0; j < oneVec.count; ++j)
+		{
+    	fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+		}
+		fprintf(fd, "\n");
+	}
+	fprintf(fd, "\n");
+	fflush(fd);
+	fclose(fd);
+	vector_free(&oneVec);
+}
+
+int main()
+{
+	build();
+	return 0;
+}
+
+extend_knuth_morris_pratt.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdarg.h>
+#include <math.h>
+#include <float.h>
+#include <time.h>
+#include <ctype.h>
+
+#ifndef NULL
+#define NULL ((void*) 0)
+#endif
+
+#define min(x, y) ({typeof(x) inner_one = (x);typeof(y) inner_two = (y);(void)(&inner_one == &inner_two);inner_one < inner_two ? inner_one : inner_two;})
+#define max(x, y) ({typeof(x) inner_one = (x);typeof(y) inner_two = (y);(void)(&inner_one == &inner_two);inner_one > inner_two ? inner_one : inner_two;})
+
+FILE *fd;
+int n;
+char arrTextStr[64][128];
+char arrPatternStr[64][128];
+
+typedef struct {int count;int max;void **mem;} vector_t;
+
+void vector_init(vector_t *vec){vec->count = 0;vec->max = 0;vec->mem = NULL;}
+void vector_free(vector_t *vec){if(vec->mem != NULL){free(vec->mem);}vector_init(vec);}
+void vector_get(vector_t *vec, int index, void **item){if(index >= 0 && index < vec->count){*item = vec->mem[index];}}
+
+int vector_reserve(vector_t *vec, int size)
+{
+	int max;void *temp;max = 0;
+	if(size <= vec->max){return 1;}
+	else if(vec->max == 0 && size > 0){max = 8;if(size > 8){do{max *= 2;}while(size > max);}}
+	else if(vec->max > 0 && size > vec->max){max = vec->max;do{max *= 2;}while(size > max);}
+	if(max > 0)
+	{
+		temp = NULL;temp = realloc(vec->mem, max * sizeof(void *));
+		if(temp != NULL){vec->mem = temp;vec->max = max;return 1;}else{return 0;}
+	}
+	else {return 1;}
+}
+
+int vector_add(vector_t *vec, void *item)
+{
+	if(vector_reserve(vec, vec->count + 1) == 1){vec->mem[vec->count] = item;vec->count++;return 1;}else{return 0;}
+}
+
+void extend_knuth_morris_pratt_makePrefix(char *pattern, int m, int *prefix)
+{
+	int i;int j;int p0;prefix[0] = m;if(m == 1){return ;}
+	i = 0;while(i < m-1 && pattern[i] == pattern[i+1]){i++;}prefix[1] = i;if(m == 2){return ;}p0 = 1;
+	for(i = 2;i < m;i++)
+	{
+		if(i > p0 && i < (p0+prefix[p0]) && (i+prefix[i-p0]) < (p0+prefix[p0])){prefix[i] = prefix[i-p0];}
+		else
+		{
+			j = max((p0+prefix[p0]-i), 0);j = min(prefix[i-p0], j);
+			while((i+j) < m && pattern[j] == pattern[i+j]){j++;}prefix[i] = j;p0 = i;
+		}
+	}
+}
+void extend_knuth_morris_pratt_makeExtend(char *text, int n, char *pattern, int m, int *extend, int *prefix)
+{
+	int i;int j;int p0;extend_knuth_morris_pratt_makePrefix(pattern, m, prefix);
+	i = 0;while(i < m && i < n && pattern[i] == text[i]){i++;}extend[0] = i;p0 = 0;if(n == 1){return ;}
+	for(i = 1;i < n;i++)
+	{
+		if(i > p0 && i < (p0+extend[p0]) && (i+prefix[i-p0]) < (p0+extend[p0])){extend[i] = prefix[i-p0];}
+		else
+		{
+			j = max((p0+extend[p0]-i), 0);if(i > p0 && i < (p0+extend[p0])){j = min(prefix[i-p0], j);}			
+			while(j < m && (i+j) < n && pattern[j] == text[i+j]){j++;}extend[i] = j;p0 = i;			
+		}
+	}
+}
+
+char * extend_knuth_morris_pratt_search(char *text, int n, char *pattern, int m, vector_t *vec)
+{
+	int *prefix;int *extend;int i;int result;if(text == NULL){return NULL;}if(n <= 0){return NULL;}if(pattern == NULL){return NULL;}
+	if(m <= 0){return NULL;}if(m > n){return NULL;}prefix = NULL;prefix = malloc(m*sizeof(int));if(prefix == NULL){return NULL;}
+	extend = NULL;extend = malloc(n*sizeof(int));if(extend == NULL){free(prefix);return NULL;}
+	result = -1;if(vec != NULL){vector_free(vec);}extend_knuth_morris_pratt_makeExtend(text, n, pattern, m, extend, prefix);
+	for(i = 0; i < n; i++)
+	{
+		if(extend[i] == m)
+		{
+			if(result == -1){result = i;}if(vec != NULL){vector_add(vec, (text+i));}
+		}
+	}
+	free(prefix);free(extend);if(result == -1){return NULL;}return (text+result);
+}
+
+void build()
+{
+	int i;int j;uint32_t length;vector_t oneVec;char *one;char output[128];memset(arrTextStr,0,sizeof(arrTextStr));memset(arrPatternStr,0,sizeof(arrPatternStr));
+	memset(output,0,sizeof(output));n = 14;vector_init(&oneVec);
+	strcpy(arrTextStr[0],"weiyayunabcdefgh") ;strcpy(arrPatternStr[0],"we");
+	strcpy(arrTextStr[1],"weiyayunabcdefgh") ;strcpy(arrPatternStr[1],"iy");
+	strcpy(arrTextStr[2],"weiyayunabcdefgh") ;strcpy(arrPatternStr[2],"ay");
+	strcpy(arrTextStr[3],"weiyayunabcdefgh") ;strcpy(arrPatternStr[3],"un");
+	strcpy(arrTextStr[4],"weiyayunabcdefgh") ;strcpy(arrPatternStr[4],"ab");
+	strcpy(arrTextStr[5],"weiyayunabcdefgh") ;strcpy(arrPatternStr[5],"cd");
+	strcpy(arrTextStr[6],"weiyayunabcdefgh") ;strcpy(arrPatternStr[6],"ef");
+	strcpy(arrTextStr[7],"weiyayunabcdefgh") ;strcpy(arrPatternStr[7],"gh");
+	strcpy(arrTextStr[8],"weiyayunabcdefgh") ;strcpy(arrPatternStr[8],"y");
+	strcpy(arrTextStr[9],"weiyayunabcdefgh") ;strcpy(arrPatternStr[9],"e");
+	strcpy(arrTextStr[10],"aaaaaaaaaaaaaaaa") ;strcpy(arrPatternStr[10],"aa");
+	strcpy(arrTextStr[11],"abababababababab") ;strcpy(arrPatternStr[11],"bab");
+	strcpy(arrTextStr[12],"abababcbabacabcb") ;strcpy(arrPatternStr[12],"bab");
+	strcpy(arrTextStr[13],"deabcdeabcfgabcfgabcabhiabcjk") ;strcpy(arrPatternStr[13],"abc");
+	fd=fopen("out.txt", "wb");
+	for(i = 0; i < 8; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = extend_knuth_morris_pratt_search(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, NULL);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+	}
+	fprintf(fd, "\n");fprintf(fd, "\n");
+	for(i = 8; i < n; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = extend_knuth_morris_pratt_search(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, &oneVec);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}
+		for(j = 0; j < oneVec.count; ++j)
+		{
+    	fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+		}
+		fprintf(fd, "\n");
+	}
+	fprintf(fd, "\n");
+	fflush(fd);
+	fclose(fd);
+	vector_free(&oneVec);
+}
+
+int main()
+{
+	build();
+	return 0;
+}
+
+brute_force.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdarg.h>
+#include <math.h>
+#include <float.h>
+#include <time.h>
+#include <ctype.h>
+
+#ifndef NULL
+#define NULL ((void*) 0)
+#endif
+
+FILE *fd;
+int n;
+char arrTextStr[64][128];
+char arrPatternStr[64][128];
+
+typedef struct {uint32_t count;uint32_t max;void **mem;} vector_t;
+
+void vector_init(vector_t *vec){vec->count = 0;vec->max = 0;vec->mem = NULL;}
+void vector_free(vector_t *vec){if(vec->mem != NULL){free(vec->mem);}vector_init(vec);}
+void vector_get(vector_t *vec, int index, void **item){if(index >= 0 && index < vec->count){*item = vec->mem[index];}}
+
+int vector_reserve(vector_t *vec, int size)
+{
+	int max;void *temp;max = 0;
+	if(size <= vec->max){return 1;}
+	else if(vec->max == 0 && size > 0){max = 8;if(size > 8){do{max *= 2;}while(size > max);}}
+	else if(vec->max > 0 && size > vec->max){max = vec->max;do{max *= 2;}while(size > max);}
+	if(max > 0)
+	{
+		temp = NULL;temp = realloc(vec->mem, max * sizeof(void *));
+		if(temp != NULL){vec->mem = temp;vec->max = max;return 1;}else{return 0;}
+	}
+	else {return 1;}
+}
+
+int vector_add(vector_t *vec, void *item)
+{
+	if(vector_reserve(vec, vec->count + 1) == 1){vec->mem[vec->count] = item;vec->count++;return 1;}else{return 0;}
+}
+
+char * brute_force(char *text, uint32_t n, char *pattern, uint32_t m, vector_t *vec)
+{
+	uint32_t index;int result;if(text == NULL){return NULL;}if(n <= 0){return NULL;}if(pattern == NULL){return NULL;}if(m <= 0){return NULL;}
+	if(m > n){return NULL;}result = -1;if(vec != NULL){vector_free(vec);}
+	for(index = 0;index <= (n-m);index++)
+	{
+		if(memcmp((text+index), pattern, m) == 0)
+		{
+			if(result == -1){result = index;}if(vec != NULL){vector_add(vec, (text+index));}
+		}
+	}
+	if(result == -1){return NULL;}return (text+result);
+}
+
+void build()
+{
+	int i;int j;uint32_t length;vector_t oneVec;char *one;char output[128];memset(arrTextStr,0,sizeof(arrTextStr));memset(arrPatternStr,0,sizeof(arrPatternStr));
+	memset(output,0,sizeof(output));n = 10;vector_init(&oneVec);
+	strcpy(arrTextStr[0],"weiyayunabcdefgh") ;strcpy(arrPatternStr[0],"we");
+	strcpy(arrTextStr[1],"weiyayunabcdefgh") ;strcpy(arrPatternStr[1],"iy");
+	strcpy(arrTextStr[2],"weiyayunabcdefgh") ;strcpy(arrPatternStr[2],"ay");
+	strcpy(arrTextStr[3],"weiyayunabcdefgh") ;strcpy(arrPatternStr[3],"un");
+	strcpy(arrTextStr[4],"weiyayunabcdefgh") ;strcpy(arrPatternStr[4],"ab");
+	strcpy(arrTextStr[5],"weiyayunabcdefgh") ;strcpy(arrPatternStr[5],"cd");
+	strcpy(arrTextStr[6],"weiyayunabcdefgh") ;strcpy(arrPatternStr[6],"ef");
+	strcpy(arrTextStr[7],"weiyayunabcdefgh") ;strcpy(arrPatternStr[7],"gh");
+	strcpy(arrTextStr[8],"weiyayunabcdefgh") ;strcpy(arrPatternStr[8],"y");
+	strcpy(arrTextStr[9],"weiyayunabcdefgh") ;strcpy(arrPatternStr[9],"e");
+	fd=fopen("out.txt", "wb");
+	for(i = 0; i < 8; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = brute_force(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, NULL);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+	}
+	fprintf(fd, "\n");fprintf(fd, "\n");
+	for(i = 8; i < n; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = brute_force(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, &oneVec);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}
+		for(j = 0; j < oneVec.count; ++j)
+		{
+    	fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+		}
+		fprintf(fd, "\n");
+	}
+	fprintf(fd, "\n");
+	fflush(fd);
+	fclose(fd);
+	vector_free(&oneVec);
+}
+
+int main()
+{
+	build();
+	return 0;
+}
+
+horspool.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdarg.h>
+#include <math.h>
+#include <float.h>
+#include <time.h>
+#include <ctype.h>
+
+#ifndef NULL
+#define NULL ((void*) 0)
+#endif
+
+FILE *fd;
+int n;
+char arrTextStr[64][128];
+char arrPatternStr[64][128];
+
+typedef struct {uint32_t count;uint32_t max;void **mem;} vector_t;
+
+void vector_init(vector_t *vec){vec->count = 0;vec->max = 0;vec->mem = NULL;}
+void vector_free(vector_t *vec){if(vec->mem != NULL){free(vec->mem);}vector_init(vec);}
+void vector_get(vector_t *vec, int index, void **item){if(index >= 0 && index < vec->count){*item = vec->mem[index];}}
+
+int vector_reserve(vector_t *vec, int size)
+{
+	int max;void *temp;max = 0;
+	if(size <= vec->max){return 1;}
+	else if(vec->max == 0 && size > 0){max = 8;if(size > 8){do{max *= 2;}while(size > max);}}
+	else if(vec->max > 0 && size > vec->max){max = vec->max;do{max *= 2;}while(size > max);}
+	if(max > 0)
+	{
+		temp = NULL;temp = realloc(vec->mem, max * sizeof(void *));
+		if(temp != NULL){vec->mem = temp;vec->max = max;return 1;}else{return 0;}
+	}
+	else {return 1;}
+}
+
+int vector_add(vector_t *vec, void *item)
+{
+	if(vector_reserve(vec, vec->count + 1) == 1){vec->mem[vec->count] = item;vec->count++;return 1;}else{return 0;}
+}
+void horspool_makeTable(char *pattern, uint32_t m, int *table)
+{
+	uint32_t i;for(i = 0;i < 256;i++){table[i] = m;}for(i = 0;i < m-1;i++){table[(uint8_t)(pattern[i])] = ((m-1)-i);}
+}
+char * horspool(char *text, uint32_t n, char *pattern, uint32_t m, vector_t *vec)
+{
+	char one;int table[256];uint32_t index;int result;if(text == NULL){return NULL;}if(n <= 0){return NULL;}if(pattern == NULL){return NULL;}if(m <= 0){return NULL;}
+	if(m > n){return NULL;}result = -1;if(vec != NULL){vector_free(vec);}horspool_makeTable(pattern, m, table);index = 0;
+	while(index <= (n-m))
+	{
+		one = text[index+m-1];
+		if(one == pattern[m-1] && memcmp((text+index), pattern, m) == 0)
+		{
+			if(result == -1){result = index;}if(vec != NULL){vector_add(vec, (text+index));}
+		}
+		index += table[(uint8_t)one];
+	}
+	if(result == -1){return NULL;}return (text+result);
+}
+
+void build()
+{
+	int i;int j;uint32_t length;vector_t oneVec;char *one;char output[128];memset(arrTextStr,0,sizeof(arrTextStr));memset(arrPatternStr,0,sizeof(arrPatternStr));
+	memset(output,0,sizeof(output));n = 10;vector_init(&oneVec);
+	strcpy(arrTextStr[0],"weiyayunabcdefgh") ;strcpy(arrPatternStr[0],"we");
+	strcpy(arrTextStr[1],"weiyayunabcdefgh") ;strcpy(arrPatternStr[1],"iy");
+	strcpy(arrTextStr[2],"weiyayunabcdefgh") ;strcpy(arrPatternStr[2],"ay");
+	strcpy(arrTextStr[3],"weiyayunabcdefgh") ;strcpy(arrPatternStr[3],"un");
+	strcpy(arrTextStr[4],"weiyayunabcdefgh") ;strcpy(arrPatternStr[4],"ab");
+	strcpy(arrTextStr[5],"weiyayunabcdefgh") ;strcpy(arrPatternStr[5],"cd");
+	strcpy(arrTextStr[6],"weiyayunabcdefgh") ;strcpy(arrPatternStr[6],"ef");
+	strcpy(arrTextStr[7],"weiyayunabcdefgh") ;strcpy(arrPatternStr[7],"gh");
+	strcpy(arrTextStr[8],"weiyayunabcdefgh") ;strcpy(arrPatternStr[8],"y");
+	strcpy(arrTextStr[9],"weiyayunabcdefgh") ;strcpy(arrPatternStr[9],"e");
+	fd=fopen("out.txt", "wb");
+	for(i = 0; i < 8; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = horspool(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, NULL);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+	}
+	fprintf(fd, "\n");fprintf(fd, "\n");
+	for(i = 8; i < n; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = horspool(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, &oneVec);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}
+		for(j = 0; j < oneVec.count; ++j)
+		{
+    	fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+		}
+		fprintf(fd, "\n");
+	}
+	fprintf(fd, "\n");
+	fflush(fd);
+	fclose(fd);
+	vector_free(&oneVec);
+}
+
+int main()
+{
+	build();
+	return 0;
+}
+
+sunday.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdarg.h>
+#include <math.h>
+#include <float.h>
+#include <time.h>
+#include <ctype.h>
+
+#ifndef NULL
+#define NULL ((void*) 0)
+#endif
+
+FILE *fd;
+int n;
+char arrTextStr[64][128];
+char arrPatternStr[64][128];
+
+typedef struct {uint32_t count;uint32_t max;void **mem;} vector_t;
+
+void vector_init(vector_t *vec){vec->count = 0;vec->max = 0;vec->mem = NULL;}
+void vector_free(vector_t *vec){if(vec->mem != NULL){free(vec->mem);}vector_init(vec);}
+void vector_get(vector_t *vec, int index, void **item){if(index >= 0 && index < vec->count){*item = vec->mem[index];}}
+
+int vector_reserve(vector_t *vec, int size)
+{
+	int max;void *temp;max = 0;
+	if(size <= vec->max){return 1;}
+	else if(vec->max == 0 && size > 0){max = 8;if(size > 8){do{max *= 2;}while(size > max);}}
+	else if(vec->max > 0 && size > vec->max){max = vec->max;do{max *= 2;}while(size > max);}
+	if(max > 0)
+	{
+		temp = NULL;temp = realloc(vec->mem, max * sizeof(void *));
+		if(temp != NULL){vec->mem = temp;vec->max = max;return 1;}else{return 0;}
+	}
+	else {return 1;}
+}
+
+int vector_add(vector_t *vec, void *item)
+{
+	if(vector_reserve(vec, vec->count + 1) == 1){vec->mem[vec->count] = item;vec->count++;return 1;}else{return 0;}
+}
+void sunday_makeTable(char *pattern, uint32_t m, int *table)
+{
+	uint32_t i;for(i = 0;i < 256;i++){table[i] = (m+1);}for(i = 0;i < m;i++){table[(uint8_t)(pattern[i])] = (m-i);}
+}
+char * sunday(char *text, uint32_t n, char *pattern, uint32_t m, vector_t *vec)
+{
+	int table[256];uint32_t index;int result;if(text == NULL){return NULL;}if(n <= 0){return NULL;}if(pattern == NULL){return NULL;}
+	if(m <= 0){return NULL;}if(m > n){return NULL;}result = -1;if(vec != NULL){vector_free(vec);}sunday_makeTable(pattern, m, table);index = 0;
+	while(index <= (n-m))
+	{
+		if(memcmp((text+index), pattern, m) == 0){if(result == -1){result = index;}if(vec != NULL){vector_add(vec, (text+index));}}
+		if(index < (n-m)){index += table[(uint8_t)(text[index+m])];}else{index += 1;}
+	}
+	if(result == -1){return NULL;}return (text+result);
+}
+
+void build()
+{
+	int i;int j;uint32_t length;vector_t oneVec;char *one;char output[128];memset(arrTextStr,0,sizeof(arrTextStr));memset(arrPatternStr,0,sizeof(arrPatternStr));
+	memset(output,0,sizeof(output));n = 14;vector_init(&oneVec);
+	strcpy(arrTextStr[0],"weiyayunabcdefgh") ;strcpy(arrPatternStr[0],"we");
+	strcpy(arrTextStr[1],"weiyayunabcdefgh") ;strcpy(arrPatternStr[1],"iy");
+	strcpy(arrTextStr[2],"weiyayunabcdefgh") ;strcpy(arrPatternStr[2],"ay");
+	strcpy(arrTextStr[3],"weiyayunabcdefgh") ;strcpy(arrPatternStr[3],"un");
+	strcpy(arrTextStr[4],"weiyayunabcdefgh") ;strcpy(arrPatternStr[4],"ab");
+	strcpy(arrTextStr[5],"weiyayunabcdefgh") ;strcpy(arrPatternStr[5],"cd");
+	strcpy(arrTextStr[6],"weiyayunabcdefgh") ;strcpy(arrPatternStr[6],"ef");
+	strcpy(arrTextStr[7],"weiyayunabcdefgh") ;strcpy(arrPatternStr[7],"gh");
+	strcpy(arrTextStr[8],"weiyayunabcdefgh") ;strcpy(arrPatternStr[8],"y");
+	strcpy(arrTextStr[9],"weiyayunabcdefgh") ;strcpy(arrPatternStr[9],"e");
+	strcpy(arrTextStr[10],"aaaaaaaaaaaaaaaa") ;strcpy(arrPatternStr[10],"aa");
+	strcpy(arrTextStr[11],"abababababababab") ;strcpy(arrPatternStr[11],"bab");
+	strcpy(arrTextStr[12],"abababcbabacabcb") ;strcpy(arrPatternStr[12],"bab");
+	strcpy(arrTextStr[13],"deabcdeabcfgabcfgabcabhiabcjk") ;strcpy(arrPatternStr[13],"abc");
+	fd=fopen("out.txt", "wb");
+	for(i = 0; i < 8; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = sunday(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, NULL);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+	}
+	fprintf(fd, "\n");fprintf(fd, "\n");
+	for(i = 8; i < n; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = sunday(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, &oneVec);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}
+		for(j = 0; j < oneVec.count; ++j)
+		{
+    	fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+		}
+		fprintf(fd, "\n");
+	}
+	fprintf(fd, "\n");
+	fflush(fd);
+	fclose(fd);
+	vector_free(&oneVec);
+}
+
+int main()
+{
+	build();
+	return 0;
+}
+
+rabin_karp.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdarg.h>
+#include <math.h>
+#include <float.h>
+#include <time.h>
+#include <ctype.h>
+
+#ifndef NULL
+#define NULL ((void*) 0)
+#endif
+
+#define min(x, y) ({typeof(x) inner_one = (x);typeof(y) inner_two = (y);(void)(&inner_one == &inner_two);inner_one < inner_two ? inner_one : inner_two;})
+#define max(x, y) ({typeof(x) inner_one = (x);typeof(y) inner_two = (y);(void)(&inner_one == &inner_two);inner_one > inner_two ? inner_one : inner_two;})
+
+FILE *fd;
+int n;
+char arrTextStr[64][128];
+char arrPatternStr[64][128];
+
+#define PRIME_RK 16777619
+
+typedef struct {uint32_t count;uint32_t max;void **mem;} vector_t;
+
+void vector_init(vector_t *vec){vec->count = 0;vec->max = 0;vec->mem = NULL;}
+void vector_free(vector_t *vec){if(vec->mem != NULL){free(vec->mem);}vector_init(vec);}
+void vector_get(vector_t *vec, int index, void **item){if(index >= 0 && index < vec->count){*item = vec->mem[index];}}
+
+int vector_reserve(vector_t *vec, int size)
+{
+	int max;void *temp;max = 0;
+	if(size <= vec->max){return 1;}
+	else if(vec->max == 0 && size > 0){max = 8;if(size > 8){do{max *= 2;}while(size > max);}}
+	else if(vec->max > 0 && size > vec->max){max = vec->max;do{max *= 2;}while(size > max);}
+	if(max > 0)
+	{
+		temp = NULL;temp = realloc(vec->mem, max * sizeof(void *));
+		if(temp != NULL){vec->mem = temp;vec->max = max;return 1;}else{return 0;}
+	}
+	else {return 1;}
+}
+
+int vector_add(vector_t *vec, void *item)
+{
+	if(vector_reserve(vec, vec->count + 1) == 1){vec->mem[vec->count] = item;vec->count++;return 1;}else{return 0;}
+}
+
+uint32_t rehash(uint32_t hashval, uint8_t sub, uint8_t add, uint32_t base, uint32_t maxpow)
+{
+	uint32_t one;one = (((uint32_t)sub) * maxpow);hashval *= base;hashval += ((uint32_t)add);
+	if(hashval < one){hashval = (uint32_t)(((uint64_t)0x0000000100000000ULL)-((uint64_t)(one-hashval)));}else{hashval -= one;}
+	return hashval;
+}
+
+uint32_t hash(void *buf, size_t len, uint32_t base)
+{
+	unsigned char *one;size_t i;uint32_t hval;hval = 0;
+	for(i = 0;i < len;i++)
+	{
+		one = (((unsigned char *)buf)+i);hval = ((hval*base)+((uint32_t)(*one)));
+	}
+	return hval;
+}
+
+uint32_t mod_pow(uint32_t base, size_t len)
+{
+  uint32_t ret;ret = 1;while(len > 0){if((len & 1) == 1){ret = (ret*base);}base = (base*base);len >>= 1;}return ret;
+}
+
+uint32_t mod_pow_two(uint32_t base, size_t len)
+{
+  uint32_t ret;ret = 1;while(len > 0){ret = (ret*base);len--;}return ret;
+}
+
+char * brute_force(char *text, uint32_t n, char *pattern, uint32_t m, vector_t *vec)
+{
+	uint32_t index;int result;if(text == NULL){return NULL;}if(n <= 0){return NULL;}if(pattern == NULL){return NULL;}if(m <= 0){return NULL;}
+	if(m > n){return NULL;}result = -1;if(vec != NULL){vector_free(vec);}
+	for(index = 0;index <= (n-m);index++)
+	{
+		if(memcmp((text+index), pattern, m) == 0)
+		{
+			if(result == -1){result = index;}if(vec != NULL){vector_add(vec, (text+index));}
+		}
+	}
+	if(result == -1){return NULL;}return (text+result);
+}
+
+char * rabin_karp(char *text, uint32_t n, char *pattern, uint32_t m, vector_t *vec)
+{
+	char *sub;char *add;uint32_t hash_pattern;uint32_t hash_roll;uint32_t maxpow;uint32_t index;int result;if(text == NULL){return NULL;}
+	if(n <= 0){return NULL;}if(pattern == NULL){return NULL;}if(m <= 0){return NULL;}if(m > n){return NULL;}
+	if(m == 1){return brute_force(text, n, pattern, m, vec);}result = -1;if(vec != NULL){vector_free(vec);}
+	maxpow = mod_pow(PRIME_RK, m);hash_pattern = hash(pattern, m, PRIME_RK);hash_roll = hash(text, m, PRIME_RK);index = 0;
+	while(index <= (n-m))
+	{
+		if(hash_roll == hash_pattern && memcmp((text+index), pattern, m) == 0)
+		{
+			if(result == -1){result = index;}if(vec != NULL){vector_add(vec, (text+index));}
+		}
+		if(index < (n-m))
+		{
+			sub = (text+index);add = (text+index+m);hash_roll = rehash(hash_roll, (uint8_t)(*sub), (uint8_t)(*add), PRIME_RK, maxpow);
+		}		
+		index++;
+	}
+	if(result == -1){return NULL;}return (text+result);
+}
+
+void build()
+{
+	int i;int j;uint32_t length;vector_t oneVec;char *one;char output[128];memset(arrTextStr,0,sizeof(arrTextStr));memset(arrPatternStr,0,sizeof(arrPatternStr));
+	memset(output,0,sizeof(output));n = 14;vector_init(&oneVec);
+	strcpy(arrTextStr[0],"weiyayunabcdefgh") ;strcpy(arrPatternStr[0],"we");
+	strcpy(arrTextStr[1],"weiyayunabcdefgh") ;strcpy(arrPatternStr[1],"iy");
+	strcpy(arrTextStr[2],"weiyayunabcdefgh") ;strcpy(arrPatternStr[2],"ay");
+	strcpy(arrTextStr[3],"weiyayunabcdefgh") ;strcpy(arrPatternStr[3],"un");
+	strcpy(arrTextStr[4],"weiyayunabcdefgh") ;strcpy(arrPatternStr[4],"ab");
+	strcpy(arrTextStr[5],"weiyayunabcdefgh") ;strcpy(arrPatternStr[5],"cd");
+	strcpy(arrTextStr[6],"weiyayunabcdefgh") ;strcpy(arrPatternStr[6],"ef");
+	strcpy(arrTextStr[7],"weiyayunabcdefgh") ;strcpy(arrPatternStr[7],"gh");
+	strcpy(arrTextStr[8],"weiyayunabcdefgh") ;strcpy(arrPatternStr[8],"y");
+	strcpy(arrTextStr[9],"weiyayunabcdefgh") ;strcpy(arrPatternStr[9],"e");
+	strcpy(arrTextStr[10],"aaaaaaaaaaaaaaaa") ;strcpy(arrPatternStr[10],"aa");
+	strcpy(arrTextStr[11],"abababababababab") ;strcpy(arrPatternStr[11],"bab");
+	strcpy(arrTextStr[12],"abababcbabacabcb") ;strcpy(arrPatternStr[12],"bab");
+	strcpy(arrTextStr[13],"deabcdeabcfgabcfgabcabhiabcjk") ;strcpy(arrPatternStr[13],"abc");
+	fd=fopen("out.txt", "wb");
+	for(i = 0; i < 8; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = rabin_karp(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, NULL);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+	}
+	fprintf(fd, "\n");fprintf(fd, "\n");
+	for(i = 8; i < n; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = rabin_karp(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, &oneVec);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}
+		for(j = 0; j < oneVec.count; ++j)
+		{
+    	fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+		}
+		fprintf(fd, "\n");
+	}
+	fprintf(fd, "\n");
+	fflush(fd);
+	fclose(fd);
+	vector_free(&oneVec);
+}
+
+int main()
+{
+	build();
+	return 0;
+}
+
+boyer_moore.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdarg.h>
+#include <math.h>
+#include <float.h>
+#include <time.h>
+#include <ctype.h>
+
+#ifndef NULL
+#define NULL ((void*) 0)
+#endif
+
+#define min(x, y) ({typeof(x) inner_one = (x);typeof(y) inner_two = (y);(void)(&inner_one == &inner_two);inner_one < inner_two ? inner_one : inner_two;})
+#define max(x, y) ({typeof(x) inner_one = (x);typeof(y) inner_two = (y);(void)(&inner_one == &inner_two);inner_one > inner_two ? inner_one : inner_two;})
+
+FILE *fd;
+int n;
+char arrTextStr[64][128];
+char arrPatternStr[64][128];
+
+typedef struct {int count;int max;void **mem;} vector_t;
+
+void vector_init(vector_t *vec){vec->count = 0;vec->max = 0;vec->mem = NULL;}
+void vector_free(vector_t *vec){if(vec->mem != NULL){free(vec->mem);}vector_init(vec);}
+void vector_get(vector_t *vec, int index, void **item){if(index >= 0 && index < vec->count){*item = vec->mem[index];}}
+
+int vector_reserve(vector_t *vec, int size)
+{
+	int max;void *temp;max = 0;
+	if(size <= vec->max){return 1;}
+	else if(vec->max == 0 && size > 0){max = 8;if(size > 8){do{max *= 2;}while(size > max);}}
+	else if(vec->max > 0 && size > vec->max){max = vec->max;do{max *= 2;}while(size > max);}
+	if(max > 0)
+	{
+		temp = NULL;temp = realloc(vec->mem, max * sizeof(void *));
+		if(temp != NULL){vec->mem = temp;vec->max = max;return 1;}else{return 0;}
+	}
+	else {return 1;}
+}
+
+int vector_add(vector_t *vec, void *item)
+{
+	if(vector_reserve(vec, vec->count + 1) == 1){vec->mem[vec->count] = item;vec->count++;return 1;}else{return 0;}
+}
+
+void boyer_moore_makeBadTable(char *pattern, int m, int *badTable)
+{
+	int i;for(i = 0;i < 256;i++){badTable[i] = m;}for(i = 0;i < m-1;i++){badTable[(uint8_t)(pattern[i])] = ((m-1)-i);}
+}
+
+void boyer_moore_makeSuffix(char *pattern, int m, int *suffix)
+{
+	int i;int f;int g;suffix[m - 1] = m;g = m - 1;
+	for (i = m - 2; i >= 0; --i)
+	{
+		if (i > g && suffix[i + m - 1 - f] < i - g){suffix[i] = suffix[i + m - 1 - f];}
+		else{f = i;g = i;while (g >= 0 && pattern[g] == pattern[g + m - 1 - f]){--g;}suffix[i] = f - g;}
+	}
+}
+void boyer_moore_makeGoodTable(char *pattern, int m, int *goodTable, int *suffix)
+{
+	int i;int j;boyer_moore_makeSuffix(pattern, m, suffix);for(i = 0;i < m;i++){goodTable[i] = m;}
+	j = 0;for(i = m-2;i >= 0;i--){if(suffix[i] == i+1){while(j < m-1-i){if(goodTable[j] == m){goodTable[j] = (m-1-i);}j++;}}}
+	for(i = 0;i <= m-2;i++){goodTable[m-1-suffix[i]] = (m-1-i);}
+}
+char * boyer_moore(char *text, int n, char *pattern, int m, vector_t *vec)
+{
+	int badTable[256];int *suffix;int *goodTable;int i;int index;int one;int result;if(text == NULL){return NULL;}if(n <= 0){return NULL;}
+	if(pattern == NULL){return NULL;}if(m <= 0){return NULL;}if(m > n){return NULL;}
+	suffix = NULL;suffix = malloc(m*sizeof(int));if(suffix == NULL){return NULL;}
+	goodTable = NULL;goodTable = malloc(m*sizeof(int));if(goodTable == NULL){free(suffix);return NULL;}
+	result = -1;if(vec != NULL){vector_free(vec);}boyer_moore_makeBadTable(pattern, m, badTable);boyer_moore_makeSuffix(pattern, m, suffix);
+	boyer_moore_makeGoodTable(pattern, m, goodTable, suffix);index = 0;
+	while(index <= (n-m))
+	{
+		i = m-1;while(i >= 0 && text[index+i] == pattern[i]){i--;}
+		if(i < 0)
+		{
+			if(result == -1){result = index;}if(vec != NULL){vector_add(vec, (text+index));}index += goodTable[0];
+		}
+		else
+		{
+			if(i == m-1){index += badTable[(uint8_t)(text[index+m-1])];}
+			else
+			{
+			    one = max(badTable[(uint8_t)(text[index+m-1])], (badTable[(uint8_t)(text[index+i])]-m+1+i));one = max(one, goodTable[i]);index += one;
+			}
+		}
+	}
+	free(suffix);free(goodTable);if(result == -1){return NULL;}return (text+result);
+}
+
+void build()
+{
+	int i;int j;int length;vector_t oneVec;char *one;char output[128];memset(arrTextStr,0,sizeof(arrTextStr));memset(arrPatternStr,0,sizeof(arrPatternStr));
+	memset(output,0,sizeof(output));n = 14;vector_init(&oneVec);
+	strcpy(arrTextStr[0],"weiyayunabcdefgh") ;strcpy(arrPatternStr[0],"we");
+	strcpy(arrTextStr[1],"weiyayunabcdefgh") ;strcpy(arrPatternStr[1],"iy");
+	strcpy(arrTextStr[2],"weiyayunabcdefgh") ;strcpy(arrPatternStr[2],"ay");
+	strcpy(arrTextStr[3],"weiyayunabcdefgh") ;strcpy(arrPatternStr[3],"un");
+	strcpy(arrTextStr[4],"weiyayunabcdefgh") ;strcpy(arrPatternStr[4],"ab");
+	strcpy(arrTextStr[5],"weiyayunabcdefgh") ;strcpy(arrPatternStr[5],"cd");
+	strcpy(arrTextStr[6],"weiyayunabcdefgh") ;strcpy(arrPatternStr[6],"ef");
+	strcpy(arrTextStr[7],"weiyayunabcdefgh") ;strcpy(arrPatternStr[7],"gh");
+	strcpy(arrTextStr[8],"weiyayunabcdefgh") ;strcpy(arrPatternStr[8],"y");
+	strcpy(arrTextStr[9],"weiyayunabcdefgh") ;strcpy(arrPatternStr[9],"e");
+	strcpy(arrTextStr[10],"aaaaaaaaaaaaaaaa") ;strcpy(arrPatternStr[10],"aa");
+	strcpy(arrTextStr[11],"abababababababab") ;strcpy(arrPatternStr[11],"bab");
+	strcpy(arrTextStr[12],"abababcbabacabcb") ;strcpy(arrPatternStr[12],"bab");
+	strcpy(arrTextStr[13],"deabcdeabcfgabcfgabcabhiabcjk") ;strcpy(arrPatternStr[13],"abc");
+	fd=fopen("out.txt", "wb");
+	for(i = 0; i < 8; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = boyer_moore(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, NULL);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+	}
+	fprintf(fd, "\n");fprintf(fd, "\n");
+	for(i = 8; i < n; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = boyer_moore(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, &oneVec);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}
+		for(j = 0; j < oneVec.count; ++j)
+		{
+    			fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+		}
+		fprintf(fd, "\n");
+	}
+	fprintf(fd, "\n");
+	fflush(fd);
+	fclose(fd);
+	vector_free(&oneVec);
+}
+
+int main()
+{
+	build();
+	return 0;
+}
+
+tuned_boyer_moore.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdarg.h>
+#include <math.h>
+#include <float.h>
+#include <time.h>
+#include <ctype.h>
+
+#ifndef NULL
+#define NULL ((void*) 0)
+#endif
+
+#define min(x, y) ({typeof(x) inner_one = (x);typeof(y) inner_two = (y);(void)(&inner_one == &inner_two);inner_one < inner_two ? inner_one : inner_two;})
+#define max(x, y) ({typeof(x) inner_one = (x);typeof(y) inner_two = (y);(void)(&inner_one == &inner_two);inner_one > inner_two ? inner_one : inner_two;})
+
+FILE *fd;
+int n;
+char arrTextStr[64][128];
+char arrPatternStr[64][128];
+
+typedef struct {int count;int max;void **mem;} vector_t;
+
+void vector_init(vector_t *vec){vec->count = 0;vec->max = 0;vec->mem = NULL;}
+void vector_free(vector_t *vec){if(vec->mem != NULL){free(vec->mem);}vector_init(vec);}
+void vector_get(vector_t *vec, int index, void **item){if(index >= 0 && index < vec->count){*item = vec->mem[index];}}
+
+int vector_reserve(vector_t *vec, int size)
+{
+	int max;void *temp;max = 0;
+	if(size <= vec->max){return 1;}
+	else if(vec->max == 0 && size > 0){max = 8;if(size > 8){do{max *= 2;}while(size > max);}}
+	else if(vec->max > 0 && size > vec->max){max = vec->max;do{max *= 2;}while(size > max);}
+	if(max > 0)
+	{
+		temp = NULL;temp = realloc(vec->mem, max * sizeof(void *));
+		if(temp != NULL){vec->mem = temp;vec->max = max;return 1;}else{return 0;}
+	}
+	else {return 1;}
+}
+
+int vector_add(vector_t *vec, void *item)
+{
+	if(vector_reserve(vec, vec->count + 1) == 1){vec->mem[vec->count] = item;vec->count++;return 1;}else{return 0;}
+}
+
+void boyer_moore_makeBadTable(char *pattern, int m, int *badTable)
+{
+	int i;for(i = 0;i < 256;i++){badTable[i] = m;}for(i = 0;i < m-1;i++){badTable[(uint8_t)(pattern[i])] = ((m-1)-i);}
+}
+
+char * tuned_boyer_moore(char *text, int n, char *pattern, int m, vector_t *vec)
+{
+	int badTable[256];int index;int one;int two;int result;if(text == NULL){return NULL;}if(n <= 0){return NULL;}if(pattern == NULL){return NULL;}
+	if(m <= 0){return NULL;}if(m > n){return NULL;}result = -1;if(vec != NULL){vector_free(vec);}boyer_moore_makeBadTable(pattern, m, badTable);
+	index = 0;one = badTable[(uint8_t)(pattern[m-1])];badTable[(uint8_t)(pattern[m-1])] = 0;
+	while(index <= (n-m))
+	{
+		two = badTable[(uint8_t)(text[index+m-1])];
+		if(two != 0){index += two;}
+		else
+		{
+			if(memcmp((text+index), pattern, m) == 0){if(result == -1){result = index;}if(vec != NULL){vector_add(vec, (text+index));}}index += one;
+		}
+	}
+	if(result == -1){return NULL;}return (text+result);
+}
+
+void build()
+{
+	int i;int j;uint32_t length;vector_t oneVec;char *one;char output[128];memset(arrTextStr,0,sizeof(arrTextStr));memset(arrPatternStr,0,sizeof(arrPatternStr));
+	memset(output,0,sizeof(output));n = 14;vector_init(&oneVec);
+	strcpy(arrTextStr[0],"weiyayunabcdefgh") ;strcpy(arrPatternStr[0],"we");
+	strcpy(arrTextStr[1],"weiyayunabcdefgh") ;strcpy(arrPatternStr[1],"iy");
+	strcpy(arrTextStr[2],"weiyayunabcdefgh") ;strcpy(arrPatternStr[2],"ay");
+	strcpy(arrTextStr[3],"weiyayunabcdefgh") ;strcpy(arrPatternStr[3],"un");
+	strcpy(arrTextStr[4],"weiyayunabcdefgh") ;strcpy(arrPatternStr[4],"ab");
+	strcpy(arrTextStr[5],"weiyayunabcdefgh") ;strcpy(arrPatternStr[5],"cd");
+	strcpy(arrTextStr[6],"weiyayunabcdefgh") ;strcpy(arrPatternStr[6],"ef");
+	strcpy(arrTextStr[7],"weiyayunabcdefgh") ;strcpy(arrPatternStr[7],"gh");
+	strcpy(arrTextStr[8],"weiyayunabcdefgh") ;strcpy(arrPatternStr[8],"y");
+	strcpy(arrTextStr[9],"weiyayunabcdefgh") ;strcpy(arrPatternStr[9],"e");
+	strcpy(arrTextStr[10],"aaaaaaaaaaaaaaaa") ;strcpy(arrPatternStr[10],"aa");
+	strcpy(arrTextStr[11],"abababababababab") ;strcpy(arrPatternStr[11],"bab");
+	strcpy(arrTextStr[12],"abababcbabacabcb") ;strcpy(arrPatternStr[12],"bab");
+	strcpy(arrTextStr[13],"deabcdeabcfgabcfgabcabhiabcjk") ;strcpy(arrPatternStr[13],"abc");
+	fd=fopen("out.txt", "wb");
+	for(i = 0; i < 8; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = tuned_boyer_moore(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, NULL);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+	}
+	fprintf(fd, "\n");fprintf(fd, "\n");
+	for(i = 8; i < n; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = tuned_boyer_moore(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, &oneVec);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}
+		for(j = 0; j < oneVec.count; ++j)
+		{
+    	fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+		}
+		fprintf(fd, "\n");
+	}
+	fprintf(fd, "\n");
+	fflush(fd);
+	fclose(fd);
+	vector_free(&oneVec);
+}
+
+int main()
+{
+	build();
+	return 0;
+}
+
+shift_and.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdarg.h>
+#include <math.h>
+#include <float.h>
+#include <time.h>
+#include <ctype.h>
+
+#ifndef NULL
+#define NULL ((void*) 0)
+#endif
+
+#define min(x, y) ({typeof(x) inner_one = (x);typeof(y) inner_two = (y);(void)(&inner_one == &inner_two);inner_one < inner_two ? inner_one : inner_two;})
+#define max(x, y) ({typeof(x) inner_one = (x);typeof(y) inner_two = (y);(void)(&inner_one == &inner_two);inner_one > inner_two ? inner_one : inner_two;})
+
+FILE *fd;
+int n;
+char arrTextStr[64][128];
+char arrPatternStr[64][128];
+
+typedef struct {uint32_t count;uint32_t max;void **mem;} vector_t;
+
+void vector_init(vector_t *vec){vec->count = 0;vec->max = 0;vec->mem = NULL;}
+void vector_free(vector_t *vec){if(vec->mem != NULL){free(vec->mem);}vector_init(vec);}
+void vector_get(vector_t *vec, int index, void **item){if(index >= 0 && index < vec->count){*item = vec->mem[index];}}
+
+int vector_reserve(vector_t *vec, int size)
+{
+	int max;void *temp;max = 0;
+	if(size <= vec->max){return 1;}
+	else if(vec->max == 0 && size > 0){max = 8;if(size > 8){do{max *= 2;}while(size > max);}}
+	else if(vec->max > 0 && size > vec->max){max = vec->max;do{max *= 2;}while(size > max);}
+	if(max > 0)
+	{
+		temp = NULL;temp = realloc(vec->mem, max * sizeof(void *));
+		if(temp != NULL){vec->mem = temp;vec->max = max;return 1;}else{return 0;}
+	}
+	else {return 1;}
+}
+
+int vector_add(vector_t *vec, void *item)
+{
+	if(vector_reserve(vec, vec->count + 1) == 1){vec->mem[vec->count] = item;vec->count++;return 1;}else{return 0;}
+}
+
+void shift_and_makeTable(char *pattern, uint32_t m, uint64_t *table)
+{
+	uint32_t index;for(index = 0;index < m;index++){table[(uint8_t)(pattern[index])] |= (1ULL << index);}
+}
+char * shift_and(char *text, uint32_t n, char *pattern, uint32_t m, vector_t *vec)
+{
+	uint64_t table[256];uint64_t one;uint64_t two;uint32_t i;int result;if(text == NULL){return NULL;}if(n <= 0){return NULL;}if(pattern == NULL){return NULL;}
+	if(m <= 0){return NULL;}if(m > n){return NULL;}if(m > 64){return NULL;}result = -1;if(vec != NULL){vector_free(vec);}
+	memset(table,0,sizeof(table));shift_and_makeTable(pattern, m, table);one = 0ULL;two = (1ULL << (m-1));
+	for(i = 0; i < n; i++)
+	{
+		one = (((one << 1) | 1ULL) & table[(uint8_t)(text[i])]);
+		if((one & two) != 0ULL)
+		{
+			if(result == -1){result = (i+1-m);}if(vec != NULL){vector_add(vec, (text+(i+1-m)));}
+		}
+	}
+	if(result == -1){return NULL;}return (text+result);
+}
+
+void build()
+{
+	int i;int j;uint32_t length;vector_t oneVec;char *one;char output[128];memset(arrTextStr,0,sizeof(arrTextStr));memset(arrPatternStr,0,sizeof(arrPatternStr));
+	memset(output,0,sizeof(output));n = 14;vector_init(&oneVec);
+	strcpy(arrTextStr[0],"weiyayunabcdefgh") ;strcpy(arrPatternStr[0],"we");
+	strcpy(arrTextStr[1],"weiyayunabcdefgh") ;strcpy(arrPatternStr[1],"iy");
+	strcpy(arrTextStr[2],"weiyayunabcdefgh") ;strcpy(arrPatternStr[2],"ay");
+	strcpy(arrTextStr[3],"weiyayunabcdefgh") ;strcpy(arrPatternStr[3],"un");
+	strcpy(arrTextStr[4],"weiyayunabcdefgh") ;strcpy(arrPatternStr[4],"ab");
+	strcpy(arrTextStr[5],"weiyayunabcdefgh") ;strcpy(arrPatternStr[5],"cd");
+	strcpy(arrTextStr[6],"weiyayunabcdefgh") ;strcpy(arrPatternStr[6],"ef");
+	strcpy(arrTextStr[7],"weiyayunabcdefgh") ;strcpy(arrPatternStr[7],"gh");
+	strcpy(arrTextStr[8],"weiyayunabcdefgh") ;strcpy(arrPatternStr[8],"y");
+	strcpy(arrTextStr[9],"weiyayunabcdefgh") ;strcpy(arrPatternStr[9],"e");
+	strcpy(arrTextStr[10],"aaaaaaaaaaaaaaaa") ;strcpy(arrPatternStr[10],"aa");
+	strcpy(arrTextStr[11],"abababababababab") ;strcpy(arrPatternStr[11],"bab");
+	strcpy(arrTextStr[12],"abababcbabacabcb") ;strcpy(arrPatternStr[12],"bab");
+	strcpy(arrTextStr[13],"deabcdeabcfgabcfgabcabhiabcjk") ;strcpy(arrPatternStr[13],"abc");
+	fd=fopen("out.txt", "wb");
+	for(i = 0; i < 8; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = shift_and(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, NULL);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+	}
+	fprintf(fd, "\n");fprintf(fd, "\n");
+	for(i = 8; i < n; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = shift_and(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, &oneVec);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}
+		for(j = 0; j < oneVec.count; ++j)
+		{
+    	fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+		}
+		fprintf(fd, "\n");
+	}
+	fprintf(fd, "\n");
+	fflush(fd);
+	fclose(fd);
+	vector_free(&oneVec);
+}
+
+int main()
+{
+	build();
+	return 0;
+}
+
+shift_or.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdarg.h>
+#include <math.h>
+#include <float.h>
+#include <time.h>
+#include <ctype.h>
+
+#ifndef NULL
+#define NULL ((void*) 0)
+#endif
+
+#define min(x, y) ({typeof(x) inner_one = (x);typeof(y) inner_two = (y);(void)(&inner_one == &inner_two);inner_one < inner_two ? inner_one : inner_two;})
+#define max(x, y) ({typeof(x) inner_one = (x);typeof(y) inner_two = (y);(void)(&inner_one == &inner_two);inner_one > inner_two ? inner_one : inner_two;})
+
+FILE *fd;
+int n;
+char arrTextStr[64][128];
+char arrPatternStr[64][128];
+
+typedef struct {uint32_t count;uint32_t max;void **mem;} vector_t;
+
+void vector_init(vector_t *vec){vec->count = 0;vec->max = 0;vec->mem = NULL;}
+void vector_free(vector_t *vec){if(vec->mem != NULL){free(vec->mem);}vector_init(vec);}
+void vector_get(vector_t *vec, int index, void **item){if(index >= 0 && index < vec->count){*item = vec->mem[index];}}
+
+int vector_reserve(vector_t *vec, int size)
+{
+	int max;void *temp;max = 0;
+	if(size <= vec->max){return 1;}
+	else if(vec->max == 0 && size > 0){max = 8;if(size > 8){do{max *= 2;}while(size > max);}}
+	else if(vec->max > 0 && size > vec->max){max = vec->max;do{max *= 2;}while(size > max);}
+	if(max > 0)
+	{
+		temp = NULL;temp = realloc(vec->mem, max * sizeof(void *));
+		if(temp != NULL){vec->mem = temp;vec->max = max;return 1;}else{return 0;}
+	}
+	else {return 1;}
+}
+
+int vector_add(vector_t *vec, void *item)
+{
+	if(vector_reserve(vec, vec->count + 1) == 1){vec->mem[vec->count] = item;vec->count++;return 1;}else{return 0;}
+}
+
+void shift_or_makeTable(char *pattern, uint32_t m, uint64_t *table)
+{
+	uint32_t index;uint64_t shift;shift = 1ULL;for(index = 0;index < m;index++){table[(uint8_t)(pattern[index])] &= (~shift);shift <<= 1;}
+}
+char * shift_or(char *text, uint32_t n, char *pattern, uint32_t m, vector_t *vec)
+{
+	uint64_t table[256];uint64_t one;uint64_t two;uint32_t i;int result;if(text == NULL){return NULL;}if(n <= 0){return NULL;}if(pattern == NULL){return NULL;}
+	if(m <= 0){return NULL;}if(m > n){return NULL;}if(m > 64){return NULL;}result = -1;if(vec != NULL){vector_free(vec);}
+	for(i = 0;i < 256;i++){table[i] = (~0ULL);}shift_or_makeTable(pattern, m, table);one = (~0ULL);two = (~(1ULL << (m-1)));
+	for(i = 0; i < n; i++)
+	{
+		one = ((one << 1) | table[(uint8_t)(text[i])]);
+		if((~(one | two)) != 0ULL)
+		{
+			if(result == -1){result = (i+1-m);}if(vec != NULL){vector_add(vec, (text+(i+1-m)));}
+		}
+	}
+	if(result == -1){return NULL;}return (text+result);
+}
+
+void build()
+{
+	int i;int j;uint32_t length;vector_t oneVec;char *one;char output[128];memset(arrTextStr,0,sizeof(arrTextStr));memset(arrPatternStr,0,sizeof(arrPatternStr));
+	memset(output,0,sizeof(output));n = 14;vector_init(&oneVec);
+	strcpy(arrTextStr[0],"weiyayunabcdefgh") ;strcpy(arrPatternStr[0],"we");
+	strcpy(arrTextStr[1],"weiyayunabcdefgh") ;strcpy(arrPatternStr[1],"iy");
+	strcpy(arrTextStr[2],"weiyayunabcdefgh") ;strcpy(arrPatternStr[2],"ay");
+	strcpy(arrTextStr[3],"weiyayunabcdefgh") ;strcpy(arrPatternStr[3],"un");
+	strcpy(arrTextStr[4],"weiyayunabcdefgh") ;strcpy(arrPatternStr[4],"ab");
+	strcpy(arrTextStr[5],"weiyayunabcdefgh") ;strcpy(arrPatternStr[5],"cd");
+	strcpy(arrTextStr[6],"weiyayunabcdefgh") ;strcpy(arrPatternStr[6],"ef");
+	strcpy(arrTextStr[7],"weiyayunabcdefgh") ;strcpy(arrPatternStr[7],"gh");
+	strcpy(arrTextStr[8],"weiyayunabcdefgh") ;strcpy(arrPatternStr[8],"y");
+	strcpy(arrTextStr[9],"weiyayunabcdefgh") ;strcpy(arrPatternStr[9],"e");
+	strcpy(arrTextStr[10],"aaaaaaaaaaaaaaaa") ;strcpy(arrPatternStr[10],"aa");
+	strcpy(arrTextStr[11],"abababababababab") ;strcpy(arrPatternStr[11],"bab");
+	strcpy(arrTextStr[12],"abababcbabacabcb") ;strcpy(arrPatternStr[12],"bab");
+	strcpy(arrTextStr[13],"deabcdeabcfgabcfgabcabhiabcjk") ;strcpy(arrPatternStr[13],"abc");
+	fd=fopen("out.txt", "wb");
+	for(i = 0; i < 8; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = shift_or(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, NULL);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+	}
+	fprintf(fd, "\n");fprintf(fd, "\n");
+	for(i = 8; i < n; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = shift_or(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, &oneVec);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}
+		for(j = 0; j < oneVec.count; ++j)
+		{
+    	fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+		}
+		fprintf(fd, "\n");
+	}
+	fprintf(fd, "\n");
+	fflush(fd);
+	fclose(fd);
+	vector_free(&oneVec);
+}
+
+int main()
+{
+	build();
+	return 0;
+}
+
+finite_state_automaton_search.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdarg.h>
+#include <math.h>
+#include <float.h>
+#include <time.h>
+#include <ctype.h>
+
+#ifndef NULL
+#define NULL ((void*) 0)
+#endif
+
+#define min(x, y) ({typeof(x) inner_one = (x);typeof(y) inner_two = (y);(void)(&inner_one == &inner_two);inner_one < inner_two ? inner_one : inner_two;})
+#define max(x, y) ({typeof(x) inner_one = (x);typeof(y) inner_two = (y);(void)(&inner_one == &inner_two);inner_one > inner_two ? inner_one : inner_two;})
+
+FILE *fd;
+int n;
+char arrTextStr[64][128];
+char arrPatternStr[64][128];
+
+typedef struct {uint32_t count;uint32_t max;void **mem;} vector_t;
+
+void vector_init(vector_t *vec){vec->count = 0;vec->max = 0;vec->mem = NULL;}
+void vector_free(vector_t *vec){if(vec->mem != NULL){free(vec->mem);}vector_init(vec);}
+void vector_get(vector_t *vec, int index, void **item){if(index >= 0 && index < vec->count){*item = vec->mem[index];}}
+
+int vector_reserve(vector_t *vec, int size)
+{
+	int max;void *temp;max = 0;
+	if(size <= vec->max){return 1;}
+	else if(vec->max == 0 && size > 0){max = 8;if(size > 8){do{max *= 2;}while(size > max);}}
+	else if(vec->max > 0 && size > vec->max){max = vec->max;do{max *= 2;}while(size > max);}
+	if(max > 0)
+	{
+		temp = NULL;temp = realloc(vec->mem, max * sizeof(void *));
+		if(temp != NULL){vec->mem = temp;vec->max = max;return 1;}else{return 0;}
+	}
+	else {return 1;}
+}
+
+int vector_add(vector_t *vec, void *item)
+{
+	if(vector_reserve(vec, vec->count + 1) == 1){vec->mem[vec->count] = item;vec->count++;return 1;}else{return 0;}
+}
+
+void finite_state_automaton_makeNext(char *pattern, uint32_t m, int *next)
+{
+	uint32_t index;uint32_t k;next[0] = 0;k = 0;
+	for(index = 1;index < m;index++)
+	{
+		while(k > 0 && pattern[k] != pattern[index]){k = next[k-1];}if(pattern[k] == pattern[index]){k++;}next[index] = k;
+	}
+}
+
+uint32_t finite_state_automaton_getNextState(char *pattern, uint32_t m, uint32_t state, uint8_t oneVal, int *next)
+{
+	uint32_t index;if(state == m){index = next[state-1];}else{index = state;}
+	while(index > 0 && (uint8_t)(pattern[index]) != oneVal){index = next[index-1];}if((uint8_t)(pattern[index]) == oneVal){index++;}
+	return index;
+}
+
+void finite_state_automaton_makeTable(char *pattern, uint32_t m, uint32_t *table, int *next)
+{
+	uint32_t state;uint32_t oneVal;uint32_t *onePtr;
+	for(state = 0;state <= m;state++)
+	{
+		for(oneVal = 0;oneVal < 256;oneVal++)
+		{
+			onePtr = (table+((state*256)+oneVal));*onePtr = finite_state_automaton_getNextState(pattern, m, state, (uint8_t)oneVal, next);
+		}
+	}
+}
+char * finite_state_automaton_search(char *text, uint32_t n, char *pattern, uint32_t m, vector_t *vec)
+{
+	int *next;uint32_t *table;uint32_t *onePtr;uint32_t i;uint32_t index;int result;if(text == NULL){return NULL;}if(n <= 0){return NULL;}if(pattern == NULL){return NULL;}
+	if(m <= 0){return NULL;}if(m > n){return NULL;}next = NULL;next = malloc(m*sizeof(int));if(next == NULL){return NULL;}
+	table = NULL;table = malloc(((m+1)*256*sizeof(uint32_t)));if(table == NULL){free(next);return NULL;}
+	result = -1;if(vec != NULL){vector_free(vec);}finite_state_automaton_makeNext(pattern, m, next);
+	finite_state_automaton_makeTable(pattern, m, table, next);index = 0;
+	for(i = 0; i < n; i++)
+	{
+		onePtr = (table+((index*256)+(uint8_t)(text[i])));index = (*onePtr);
+		if(index == m)
+		{
+			if(result == -1){result = (i+1-m);}if(vec != NULL){vector_add(vec, (text+(i+1-m)));}
+		}
+	}
+	free(next);free(table);if(result == -1){return NULL;}return (text+result);
+}
+
+void build()
+{
+	int i;int j;uint32_t length;vector_t oneVec;char *one;char output[128];memset(arrTextStr,0,sizeof(arrTextStr));memset(arrPatternStr,0,sizeof(arrPatternStr));
+	memset(output,0,sizeof(output));n = 14;vector_init(&oneVec);
+	strcpy(arrTextStr[0],"weiyayunabcdefgh") ;strcpy(arrPatternStr[0],"we");
+	strcpy(arrTextStr[1],"weiyayunabcdefgh") ;strcpy(arrPatternStr[1],"iy");
+	strcpy(arrTextStr[2],"weiyayunabcdefgh") ;strcpy(arrPatternStr[2],"ay");
+	strcpy(arrTextStr[3],"weiyayunabcdefgh") ;strcpy(arrPatternStr[3],"un");
+	strcpy(arrTextStr[4],"weiyayunabcdefgh") ;strcpy(arrPatternStr[4],"ab");
+	strcpy(arrTextStr[5],"weiyayunabcdefgh") ;strcpy(arrPatternStr[5],"cd");
+	strcpy(arrTextStr[6],"weiyayunabcdefgh") ;strcpy(arrPatternStr[6],"ef");
+	strcpy(arrTextStr[7],"weiyayunabcdefgh") ;strcpy(arrPatternStr[7],"gh");
+	strcpy(arrTextStr[8],"weiyayunabcdefgh") ;strcpy(arrPatternStr[8],"y");
+	strcpy(arrTextStr[9],"weiyayunabcdefgh") ;strcpy(arrPatternStr[9],"e");
+	strcpy(arrTextStr[10],"aaaaaaaaaaaaaaaa") ;strcpy(arrPatternStr[10],"aa");
+	strcpy(arrTextStr[11],"abababababababab") ;strcpy(arrPatternStr[11],"bab");
+	strcpy(arrTextStr[12],"abababcbabacabcb") ;strcpy(arrPatternStr[12],"bab");
+	strcpy(arrTextStr[13],"deabcdeabcfgabcfgabcabhiabcjk") ;strcpy(arrPatternStr[13],"abc");
+	fd=fopen("out.txt", "wb");
+	for(i = 0; i < 8; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = finite_state_automaton_search(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, NULL);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+	}
+	fprintf(fd, "\n");fprintf(fd, "\n");
+	for(i = 8; i < n; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = finite_state_automaton_search(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, &oneVec);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}
+		for(j = 0; j < oneVec.count; ++j)
+		{
+    	fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+		}
+		fprintf(fd, "\n");
+	}
+	fprintf(fd, "\n");
+	fflush(fd);
+	fclose(fd);
+	vector_free(&oneVec);
+}
+
+int main()
+{
+	build();
+	return 0;
+}
+
+smith_search.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdarg.h>
+#include <math.h>
+#include <float.h>
+#include <time.h>
+#include <ctype.h>
+
+#ifndef NULL
+#define NULL ((void*) 0)
+#endif
+
+#define min(x, y) ({typeof(x) inner_one = (x);typeof(y) inner_two = (y);(void)(&inner_one == &inner_two);inner_one < inner_two ? inner_one : inner_two;})
+#define max(x, y) ({typeof(x) inner_one = (x);typeof(y) inner_two = (y);(void)(&inner_one == &inner_two);inner_one > inner_two ? inner_one : inner_two;})
+
+FILE *fd;
+int n;
+char arrTextStr[64][128];
+char arrPatternStr[64][128];
+
+typedef struct {int count;int max;void **mem;} vector_t;
+
+void vector_init(vector_t *vec){vec->count = 0;vec->max = 0;vec->mem = NULL;}
+void vector_free(vector_t *vec){if(vec->mem != NULL){free(vec->mem);}vector_init(vec);}
+void vector_get(vector_t *vec, int index, void **item){if(index >= 0 && index < vec->count){*item = vec->mem[index];}}
+
+int vector_reserve(vector_t *vec, int size)
+{
+	int max;void *temp;max = 0;
+	if(size <= vec->max){return 1;}
+	else if(vec->max == 0 && size > 0){max = 8;if(size > 8){do{max *= 2;}while(size > max);}}
+	else if(vec->max > 0 && size > vec->max){max = vec->max;do{max *= 2;}while(size > max);}
+	if(max > 0)
+	{
+		temp = NULL;temp = realloc(vec->mem, max * sizeof(void *));
+		if(temp != NULL){vec->mem = temp;vec->max = max;return 1;}else{return 0;}
+	}
+	else {return 1;}
+}
+
+int vector_add(vector_t *vec, void *item)
+{
+	if(vector_reserve(vec, vec->count + 1) == 1){vec->mem[vec->count] = item;vec->count++;return 1;}else{return 0;}
+}
+
+void boyer_moore_makeBadTable(char *pattern, int m, int *badTable)
+{
+	int i;for(i = 0;i < 256;i++){badTable[i] = m;}for(i = 0;i < m-1;i++){badTable[(uint8_t)(pattern[i])] = ((m-1)-i);}
+}
+
+void sunday_makeBadTable(char *pattern, int m, int *badTable)
+{
+	int i;for(i = 0;i < 256;i++){badTable[i] = (m+1);}for(i = 0;i < m;i++){badTable[(uint8_t)(pattern[i])] = (m-i);}
+}
+
+char * smith_search(char *text, int n, char *pattern, int m, vector_t *vec)
+{
+	int badTable[256];int sundayBadTable[256];int index;int one;int two;int three;int result;if(text == NULL){return NULL;}if(n <= 0){return NULL;}
+	if(pattern == NULL){return NULL;}if(m <= 0){return NULL;}if(m > n){return NULL;}result = -1;if(vec != NULL){vector_free(vec);}
+	boyer_moore_makeBadTable(pattern, m, badTable);sunday_makeBadTable(pattern, m, sundayBadTable);
+	index = 0;one = badTable[(uint8_t)(pattern[m-1])];badTable[(uint8_t)(pattern[m-1])] = 0;
+	while(index <= (n-m))
+	{
+		two = badTable[(uint8_t)(text[index+m-1])];if(index < (n-m)){three = sundayBadTable[(uint8_t)(text[index+m])];}else{three = 1;}
+		if(two != 0){two = max(two, three);index += two;}
+		else
+		{
+			if(memcmp((text+index), pattern, m) == 0){if(result == -1){result = index;}if(vec != NULL){vector_add(vec, (text+index));}}
+			two = max(one, three);index += two;
+		}
+	}
+	if(result == -1){return NULL;}return (text+result);
+}
+
+void build()
+{
+	int i;int j;uint32_t length;vector_t oneVec;char *one;char output[128];memset(arrTextStr,0,sizeof(arrTextStr));memset(arrPatternStr,0,sizeof(arrPatternStr));
+	memset(output,0,sizeof(output));n = 14;vector_init(&oneVec);
+	strcpy(arrTextStr[0],"weiyayunabcdefgh") ;strcpy(arrPatternStr[0],"we");
+	strcpy(arrTextStr[1],"weiyayunabcdefgh") ;strcpy(arrPatternStr[1],"iy");
+	strcpy(arrTextStr[2],"weiyayunabcdefgh") ;strcpy(arrPatternStr[2],"ay");
+	strcpy(arrTextStr[3],"weiyayunabcdefgh") ;strcpy(arrPatternStr[3],"un");
+	strcpy(arrTextStr[4],"weiyayunabcdefgh") ;strcpy(arrPatternStr[4],"ab");
+	strcpy(arrTextStr[5],"weiyayunabcdefgh") ;strcpy(arrPatternStr[5],"cd");
+	strcpy(arrTextStr[6],"weiyayunabcdefgh") ;strcpy(arrPatternStr[6],"ef");
+	strcpy(arrTextStr[7],"weiyayunabcdefgh") ;strcpy(arrPatternStr[7],"gh");
+	strcpy(arrTextStr[8],"weiyayunabcdefgh") ;strcpy(arrPatternStr[8],"y");
+	strcpy(arrTextStr[9],"weiyayunabcdefgh") ;strcpy(arrPatternStr[9],"e");
+	strcpy(arrTextStr[10],"aaaaaaaaaaaaaaaa") ;strcpy(arrPatternStr[10],"aa");
+	strcpy(arrTextStr[11],"abababababababab") ;strcpy(arrPatternStr[11],"bab");
+	strcpy(arrTextStr[12],"abababcbabacabcb") ;strcpy(arrPatternStr[12],"bab");
+	strcpy(arrTextStr[13],"deabcdeabcfgabcfgabcabhiabcjk") ;strcpy(arrPatternStr[13],"abc");
+	fd=fopen("out.txt", "wb");
+	for(i = 0; i < 8; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = smith_search(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, NULL);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+	}
+	fprintf(fd, "\n");fprintf(fd, "\n");
+	for(i = 8; i < n; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = smith_search(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, &oneVec);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}
+		for(j = 0; j < oneVec.count; ++j)
+		{
+    	fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+		}
+		fprintf(fd, "\n");
+	}
+	fprintf(fd, "\n");
+	fflush(fd);
+	fclose(fd);
+	vector_free(&oneVec);
+}
+
+int main()
+{
+	build();
+	return 0;
+}
+
+raita_search.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdarg.h>
+#include <math.h>
+#include <float.h>
+#include <time.h>
+#include <ctype.h>
+
+#ifndef NULL
+#define NULL ((void*) 0)
+#endif
+
+#define min(x, y) ({typeof(x) inner_one = (x);typeof(y) inner_two = (y);(void)(&inner_one == &inner_two);inner_one < inner_two ? inner_one : inner_two;})
+#define max(x, y) ({typeof(x) inner_one = (x);typeof(y) inner_two = (y);(void)(&inner_one == &inner_two);inner_one > inner_two ? inner_one : inner_two;})
+
+FILE *fd;
+int n;
+char arrTextStr[64][128];
+char arrPatternStr[64][128];
+
+typedef struct {int count;int max;void **mem;} vector_t;
+
+void vector_init(vector_t *vec){vec->count = 0;vec->max = 0;vec->mem = NULL;}
+void vector_free(vector_t *vec){if(vec->mem != NULL){free(vec->mem);}vector_init(vec);}
+void vector_get(vector_t *vec, int index, void **item){if(index >= 0 && index < vec->count){*item = vec->mem[index];}}
+
+int vector_reserve(vector_t *vec, int size)
+{
+	int max;void *temp;max = 0;
+	if(size <= vec->max){return 1;}
+	else if(vec->max == 0 && size > 0){max = 8;if(size > 8){do{max *= 2;}while(size > max);}}
+	else if(vec->max > 0 && size > vec->max){max = vec->max;do{max *= 2;}while(size > max);}
+	if(max > 0)
+	{
+		temp = NULL;temp = realloc(vec->mem, max * sizeof(void *));
+		if(temp != NULL){vec->mem = temp;vec->max = max;return 1;}else{return 0;}
+	}
+	else {return 1;}
+}
+
+int vector_add(vector_t *vec, void *item)
+{
+	if(vector_reserve(vec, vec->count + 1) == 1){vec->mem[vec->count] = item;vec->count++;return 1;}else{return 0;}
+}
+
+void boyer_moore_makeBadTable(char *pattern, int m, int *badTable)
+{
+	int i;for(i = 0;i < 256;i++){badTable[i] = m;}for(i = 0;i < m-1;i++){badTable[(uint8_t)(pattern[i])] = ((m-1)-i);}
+}
+
+void sunday_makeBadTable(char *pattern, int m, int *badTable)
+{
+	int i;for(i = 0;i < 256;i++){badTable[i] = (m+1);}for(i = 0;i < m;i++){badTable[(uint8_t)(pattern[i])] = (m-i);}
+}
+
+char * raita_search(char *text, int n, char *pattern, int m, vector_t *vec)
+{
+	int badTable[256];int sundayBadTable[256];int index;int one;int two;int three;int result;if(text == NULL){return NULL;}if(n <= 0){return NULL;}
+	if(pattern == NULL){return NULL;}if(m <= 0){return NULL;}if(m > n){return NULL;}result = -1;if(vec != NULL){vector_free(vec);}
+	boyer_moore_makeBadTable(pattern, m, badTable);sunday_makeBadTable(pattern, m, sundayBadTable);
+	index = 0;one = badTable[(uint8_t)(pattern[m-1])];badTable[(uint8_t)(pattern[m-1])] = 0;
+	while(index <= (n-m))
+	{
+		two = badTable[(uint8_t)(text[index+m-1])];if(index < (n-m)){three = sundayBadTable[(uint8_t)(text[index+m])];}else{three = 1;}
+		if(two != 0){two = max(two, three);index += two;}
+		else
+		{
+			if(text[index] == pattern[0] && text[index+(m/2)] == pattern[(m/2)])
+			{
+				if(memcmp((text+index), pattern, m) == 0){if(result == -1){result = index;}if(vec != NULL){vector_add(vec, (text+index));}}
+			}
+			two = max(one, three);index += two;
+		}
+	}
+	if(result == -1){return NULL;}return (text+result);
+}
+
+void build()
+{
+	int i;int j;uint32_t length;vector_t oneVec;char *one;char output[128];memset(arrTextStr,0,sizeof(arrTextStr));memset(arrPatternStr,0,sizeof(arrPatternStr));
+	memset(output,0,sizeof(output));n = 14;vector_init(&oneVec);
+	strcpy(arrTextStr[0],"weiyayunabcdefgh") ;strcpy(arrPatternStr[0],"we");
+	strcpy(arrTextStr[1],"weiyayunabcdefgh") ;strcpy(arrPatternStr[1],"iy");
+	strcpy(arrTextStr[2],"weiyayunabcdefgh") ;strcpy(arrPatternStr[2],"ay");
+	strcpy(arrTextStr[3],"weiyayunabcdefgh") ;strcpy(arrPatternStr[3],"un");
+	strcpy(arrTextStr[4],"weiyayunabcdefgh") ;strcpy(arrPatternStr[4],"ab");
+	strcpy(arrTextStr[5],"weiyayunabcdefgh") ;strcpy(arrPatternStr[5],"cd");
+	strcpy(arrTextStr[6],"weiyayunabcdefgh") ;strcpy(arrPatternStr[6],"ef");
+	strcpy(arrTextStr[7],"weiyayunabcdefgh") ;strcpy(arrPatternStr[7],"gh");
+	strcpy(arrTextStr[8],"weiyayunabcdefgh") ;strcpy(arrPatternStr[8],"y");
+	strcpy(arrTextStr[9],"weiyayunabcdefgh") ;strcpy(arrPatternStr[9],"e");
+	strcpy(arrTextStr[10],"aaaaaaaaaaaaaaaa") ;strcpy(arrPatternStr[10],"aa");
+	strcpy(arrTextStr[11],"abababababababab") ;strcpy(arrPatternStr[11],"bab");
+	strcpy(arrTextStr[12],"abababcbabacabcb") ;strcpy(arrPatternStr[12],"bab");
+	strcpy(arrTextStr[13],"deabcdeabcfgabcfgabcabhiabcjk") ;strcpy(arrPatternStr[13],"abc");
+	fd=fopen("out.txt", "wb");
+	for(i = 0; i < 8; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = raita_search(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, NULL);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+	}
+	fprintf(fd, "\n");fprintf(fd, "\n");
+	for(i = 8; i < n; ++i)
+	{
+		length = strlen(arrPatternStr[i]);one = raita_search(arrTextStr[i], strlen(arrTextStr[i]), arrPatternStr[i], length, &oneVec);
+		if(one != NULL){memcpy(output, one, length);output[length] = 0;}
+		for(j = 0; j < oneVec.count; ++j)
+		{
+    	fprintf(fd, "%s : %s : %s\n", arrTextStr[i], arrPatternStr[i], output);
+		}
+		fprintf(fd, "\n");
+	}
+	fprintf(fd, "\n");
+	fflush(fd);
+	fclose(fd);
+	vector_free(&oneVec);
+}
+
+int main()
+{
+	build();
+	return 0;
+}
