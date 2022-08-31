@@ -1,0 +1,312 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <array>
+#include <valarray>
+#include <vector>
+#include <deque>
+#include <list>
+#include <forward_list>
+#include <set>
+#include <map>
+#include <unordered_set>
+#include <unordered_map>
+#include <tuple>
+#include <bitset>
+#include <regex>
+#include <stack>
+#include <queue>
+#include <string>
+#include <algorithm>
+#include <iterator>
+#include <stdexcept>
+#include <numeric>
+#include <iomanip>
+#include <chrono>
+#include <memory>
+#include <utility>
+#include <random>
+#include <limits>
+#include <type_traits>
+#include <initializer_list>
+#include <functional>
+#include <cstdlib>
+#include <cstring>
+#include <cctype>
+#include <climits>
+#include <ctime>
+#include <cmath>
+
+using std::cin;
+using std::cout;
+using std::cerr;
+using std::endl;
+using std::istream;
+using std::ostream;
+using std::ifstream;
+using std::ofstream;
+using std::fstream;
+using std::istringstream;
+using std::ostringstream;
+using std::stringstream;
+using std::array;
+using std::valarray;
+using std::vector;
+using std::deque;
+using std::list;
+using std::forward_list;
+using std::set;
+using std::multiset;
+using std::map;
+using std::multimap;
+using std::unordered_set;
+using std::unordered_multiset;
+using std::unordered_map;
+using std::unordered_multimap;
+using std::pair;
+using std::stack;
+using std::queue;
+using std::priority_queue;
+using std::string;
+using std::getline;
+using std::to_string;
+using std::domain_error;
+using std::runtime_error;
+using std::exception;
+using std::transform;
+using std::back_inserter;
+using std::istream_iterator;
+using std::ostream_iterator;
+using std::search;
+using std::sort;
+using std::copy;
+using std::accumulate;
+using std::find;
+using std::find_if;
+using std::replace_if;
+using std::max;
+using std::min;
+using std::swap;
+using std::stable_partition;
+using std::streamsize;
+using std::streampos;
+using std::setprecision;
+using std::setw;
+using std::chrono::steady_clock;
+using std::allocator;
+using std::uninitialized_fill;
+using std::uninitialized_copy;
+using std::distance;
+using std::unique;
+using std::mt19937;
+using std::uniform_int_distribution;
+using std::ios_base;
+using std::ios;
+using std::showbase;
+using std::hex;
+using std::oct;
+using std::dec;
+using std::fixed;
+using std::scientific;
+using std::left;
+using std::right;
+using std::flush;
+using std::numeric_limits;
+using std::common_type;
+using std::reverse;
+using std::begin;
+using std::end;
+using std::initializer_list;
+using std::function;
+using std::bind;
+using std::out_of_range;
+using std::shared_ptr;
+using std::unique_ptr;
+using std::weak_ptr;
+using std::enable_shared_from_this;
+using std::uninitialized_copy_n;
+using std::uninitialized_fill_n;
+using std::make_shared;
+using std::make_unique;
+using std::tuple;
+using std::make_tuple;
+using std::tuple_size;
+using std::tuple_element;
+using std::bitset;
+using std::regex;
+using std::regex_match;
+using std::regex_search;
+using std::regex_replace;
+using std::smatch;
+using std::ssub_match;
+using std::sregex_iterator;
+using std::gcd;
+
+struct TreeNode
+{
+    int val;
+    TreeNode *left;
+    TreeNode *right;
+    TreeNode() : val(0), left(nullptr), right(nullptr) {}
+    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+    TreeNode(int x, TreeNode *left, TreeNode *right) : val(x), left(left), right(right) {}
+};
+
+
+void inorder(TreeNode *root, vector<int> &v)
+{
+    if (!root) return;
+    inorder(root->left, v);
+    v.push_back(root->val);
+    inorder(root->right, v);
+}
+
+void inorder_norecur(TreeNode *root, vector<int> &v)
+{
+    if (!root) return;
+    TreeNode *p = root;
+    stack<TreeNode *> s;
+    while (p != nullptr || !s.empty())
+    {
+        while (p != nullptr)
+        {
+            s.push(p);
+            p = p->left;
+        }
+        if (!s.empty())
+        {
+            p = s.top();
+            s.pop();
+            v.push_back(p->val);
+            p = p->right;
+        }
+    }
+}
+
+
+void preorder(TreeNode *root, vector<int> &v)
+{
+    if (!root) return;
+    v.push_back(root->val);
+    preorder(root->left, v);
+    preorder(root->right, v);
+}
+
+void preorder_norecur(TreeNode *root, vector<int> &v)
+{
+    if (!root) return;
+    TreeNode *p = root;
+    stack<TreeNode *> s;
+    while (p != nullptr || !s.empty())
+    {
+        while (p != nullptr)
+        {
+            s.push(p);
+            v.push_back(p->val);
+            p = p->left;
+        }
+        if (!s.empty())
+        {
+            p = s.top();
+            s.pop();
+            p = p->right;
+        }
+    }
+}
+
+
+void postorder(TreeNode *root, vector<int> &v)
+{
+    if (!root) return;
+    postorder(root->left, v);
+    postorder(root->right, v);
+    v.push_back(root->val);
+}
+
+void postorder_norecur(TreeNode *root, vector<int> &v)
+{
+    if (!root) return;
+    TreeNode *cur = root;
+    TreeNode *pre = nullptr;
+    stack<TreeNode *> s;
+    s.push(root);
+    while (!s.empty())
+    {
+        cur = s.top();
+        if ((cur->left == nullptr && cur->right == nullptr) ||
+                ((pre == cur->left || pre == cur->right) && pre != nullptr))
+        {
+            v.push_back(cur->val);
+            s.pop();
+            pre = cur;
+        }
+        else
+        {
+            if (cur->right != NULL)
+                s.push(cur->right);
+            if (cur->left != NULL)
+                s.push(cur->left);
+        }
+    }
+}
+
+TreeNode *build_tree(vector<int> &v, int left, int right)
+{
+    if(left > right) return nullptr;
+    int mid = left + (right - left) / 2;
+    TreeNode *root = new TreeNode(v[mid]);
+    root-> left = build_tree(v, left, mid - 1);
+    root-> right = build_tree(v, mid + 1, right);
+    return root;
+}
+
+int main(int argc, const char *argv[])
+{
+    int n = 39;
+    vector<int> vec(n);
+    for (int i = 0; i < n; ++i) vec[i] = i + 1;
+    TreeNode *root = build_tree(vec, 0, n - 1);
+    vector<int> v11;
+    vector<int> v12;
+    vector<int> v21;
+    vector<int> v22;
+    vector<int> v31;
+    vector<int> v32;
+    v11.reserve(n);
+    v12.reserve(n);
+    v21.reserve(n);
+    v22.reserve(n);
+    v31.reserve(n);
+    v32.reserve(n);
+    inorder(root, v11);
+    inorder_norecur(root, v12);
+    for (auto t : v11) cout << t << ", ";
+    cout << endl;
+    for (auto t : v12) cout << t << ", ";
+    cout << endl;
+
+    preorder(root, v21);
+    preorder_norecur(root, v22);
+    for (auto t : v21) cout << t << ", ";
+    cout << endl;
+    for (auto t : v22) cout << t << ", ";
+    cout << endl;
+
+    postorder(root, v31);
+    postorder_norecur(root, v32);
+    for (auto t : v31) cout << t << ", ";
+    cout << endl;
+    for (auto t : v32) cout << t << ", ";
+    cout << endl;
+
+    return 0;
+}
+
+[weiyayun@weiyayun-PC ~]$ ./1
+1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+20, 10, 5, 2, 1, 3, 4, 7, 6, 8, 9, 15, 12, 11, 13, 14, 17, 16, 18, 19, 30, 25, 22, 21, 23, 24, 27, 26, 28, 29, 35, 32, 31, 33, 34, 37, 36, 38, 39,
+20, 10, 5, 2, 1, 3, 4, 7, 6, 8, 9, 15, 12, 11, 13, 14, 17, 16, 18, 19, 30, 25, 22, 21, 23, 24, 27, 26, 28, 29, 35, 32, 31, 33, 34, 37, 36, 38, 39,
+1, 4, 3, 2, 6, 9, 8, 7, 5, 11, 14, 13, 12, 16, 19, 18, 17, 15, 10, 21, 24, 23, 22, 26, 29, 28, 27, 25, 31, 34, 33, 32, 36, 39, 38, 37, 35, 30, 20,
+1, 4, 3, 2, 6, 9, 8, 7, 5, 11, 14, 13, 12, 16, 19, 18, 17, 15, 10, 21, 24, 23, 22, 26, 29, 28, 27, 25, 31, 34, 33, 32, 36, 39, 38, 37, 35, 30, 20,
+[weiyayun@weiyayun-PC ~]$
